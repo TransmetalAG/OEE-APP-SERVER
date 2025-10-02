@@ -55,7 +55,7 @@ export default function Captura() {
     setForm({ ...form, paros: form.paros.filter((_, idx) => idx !== i) });
   };
 
-  // Validar y guardar en Supabase
+  // Guardar en Supabase
   const guardar = async () => {
     if (
       !form.fecha ||
@@ -81,7 +81,6 @@ export default function Captura() {
       }
     }
 
-    // Insertar en Supabase
     const { error } = await supabase.from("registros").insert([
       {
         fecha: form.fecha,
@@ -94,32 +93,30 @@ export default function Captura() {
         carretas: Number(form.carretas),
         piezasTotales: Number(form.piezasTotales),
         piezasBuenas: Number(form.piezasBuenas),
-        paros: form.paros, // JSON válido
+        paros: form.paros, // JSONB en la tabla
       },
     ]);
 
     if (error) {
-      console.error("Error al guardar:", error);
-      alert("Hubo un error al guardar en la base de datos.");
-      return;
+      console.error(error);
+      alert("❌ Hubo un error al guardar en la base de datos.");
+    } else {
+      alert("✅ Registro guardado en la base de datos");
+
+      setForm({
+        fecha: new Date().toISOString().split("T")[0],
+        codigo: "",
+        nombre: "",
+        maquina: "",
+        proceso: "",
+        inicio: "",
+        fin: "",
+        carretas: "",
+        piezasTotales: "",
+        piezasBuenas: "",
+        paros: [],
+      });
     }
-
-    alert("Registro guardado ✅");
-
-    // Resetear formulario
-    setForm({
-      fecha: new Date().toISOString().split("T")[0],
-      codigo: "",
-      nombre: "",
-      maquina: "",
-      proceso: "",
-      inicio: "",
-      fin: "",
-      carretas: "",
-      piezasTotales: "",
-      piezasBuenas: "",
-      paros: [],
-    });
   };
 
   return (
@@ -173,4 +170,135 @@ export default function Captura() {
       </select>
 
       {/* Proceso */}
-      <label c
+      <label className="block font-semibold">Proceso / Pieza</label>
+      <select
+        name="proceso"
+        value={form.proceso}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+        disabled={!form.maquina}
+      >
+        <option value="">Seleccione proceso...</option>
+        {catalogo
+          .filter((m) => m.maquina === form.maquina)
+          .map((m, i) => (
+            <option key={i} value={m.proceso}>
+              {m.proceso}
+            </option>
+          ))}
+      </select>
+
+      {/* Horarios */}
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <label className="block font-semibold">Hora Inicio</label>
+          <input
+            type="time"
+            name="inicio"
+            value={form.inicio}
+            onChange={handleChange}
+            className="border p-2 w-full mb-2 rounded-none"
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block font-semibold">Hora Fin</label>
+          <input
+            type="time"
+            name="fin"
+            value={form.fin}
+            onChange={handleChange}
+            className="border p-2 w-full mb-2 rounded-none"
+          />
+        </div>
+      </div>
+
+      {/* Carretas */}
+      <label className="block font-semibold">Carretas Programadas</label>
+      <input
+        type="number"
+        name="carretas"
+        value={form.carretas}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      {/* Piezas */}
+      <label className="block font-semibold">Piezas Totales</label>
+      <input
+        type="number"
+        name="piezasTotales"
+        value={form.piezasTotales}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      <label className="block font-semibold">Piezas Buenas</label>
+      <input
+        type="number"
+        name="piezasBuenas"
+        value={form.piezasBuenas}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      {/* Paros */}
+      <div className="mt-4">
+        <h3 className="font-semibold mb-2">Paros</h3>
+
+        {form.paros.map((p, i) => (
+          <div key={i} className="flex items-center gap-2 border p-2 mb-2">
+            <select
+              value={p.tipo}
+              onChange={(e) => editarParo(i, "tipo", e.target.value)}
+              className="border p-2 flex-1 rounded-none"
+            >
+              <option value="">Seleccione...</option>
+              <option value="Mecánico">Mecánico</option>
+              <option value="Eléctrico">Eléctrico</option>
+              <option value="Planeado">Planeado</option>
+              <option value="Otro">Otro</option>
+            </select>
+
+            <input
+              type="number"
+              placeholder="Minutos"
+              value={p.minutos}
+              onChange={(e) => editarParo(i, "minutos", e.target.value)}
+              className="border p-2 w-24 rounded-none"
+            />
+
+            <input
+              type="text"
+              placeholder="Descripción"
+              value={p.descripcion}
+              onChange={(e) => editarParo(i, "descripcion", e.target.value)}
+              className="border p-2 flex-1 rounded-none"
+            />
+
+            <button
+              onClick={() => eliminarParo(i)}
+              className="bg-red-600 text-white px-3 py-1 rounded-none"
+            >
+              Eliminar
+            </button>
+          </div>
+        ))}
+
+        <button
+          onClick={agregarParo}
+          className="bg-blue-600 text-white px-4 py-2 rounded-none"
+        >
+          + Agregar paro
+        </button>
+      </div>
+
+      {/* Botón Guardar */}
+      <button
+        onClick={guardar}
+        className="bg-green-600 text-white px-4 py-2 rounded-none mt-4"
+      >
+        Guardar Registro
+      </button>
+    </div>
+  );
+}
