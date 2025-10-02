@@ -69,8 +69,12 @@ export default function KPIs() {
     const tiempoUtil = tiempoOperativoNeto - perdidasCalidad;
 
     const disponibilidad = tiempoOperativo / tiempoProgramado;
-    const desempeno = tiempoOperativoNeto / tiempoOperativo;
-    const calidad = tiempoUtil / tiempoOperativoNeto;
+    
+    // 🔹 Limitar desempeño a 100%
+    let desempeno = tiempoOperativo > 0 ? tiempoOperativoNeto / tiempoOperativo : 0;
+    desempeno = Math.min(desempeno, 1);
+
+    const calidad = tiempoOperativoNeto > 0 ? tiempoUtil / tiempoOperativoNeto : 0;
     const oeeFinal = disponibilidad * desempeno * calidad;
 
     return {
