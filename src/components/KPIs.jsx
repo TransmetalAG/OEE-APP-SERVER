@@ -69,8 +69,8 @@ export default function KPIs() {
     const tiempoUtil = tiempoOperativoNeto - perdidasCalidad;
 
     const disponibilidad = tiempoOperativo / tiempoProgramado;
-    
-    // 🔹 Limitar desempeño a 100%
+
+    // 🔹 Desempeño limitado a 100%
     let desempeno = tiempoOperativo > 0 ? tiempoOperativoNeto / tiempoOperativo : 0;
     desempeno = Math.min(desempeno, 1);
 
@@ -96,6 +96,24 @@ export default function KPIs() {
   const registrosFiltrados = fechaFiltro
     ? registros.filter((r) => r.fecha === fechaFiltro)
     : registros;
+
+  // 🔹 Cálculo de OEE ponderado
+  const calcularOEEPonderado = () => {
+    let totalTiempo = 0;
+    let sumaOEE = 0;
+
+    registrosFiltrados.forEach((r) => {
+      const oee = calcularOEE(r);
+      if (oee) {
+        sumaOEE += oee.oee * oee.tiempoProgramado;
+        totalTiempo += oee.tiempoProgramado;
+      }
+    });
+
+    return totalTiempo > 0 ? (sumaOEE / totalTiempo) : null;
+  };
+
+  const oeePonderado = calcularOEEPonderado();
 
   if (loading) {
     return <p className="p-4">⏳ Cargando datos...</p>;
@@ -126,6 +144,13 @@ export default function KPIs() {
           🔄 Refrescar
         </button>
       </div>
+
+      {/* OEE ponderado */}
+      {oeePonderado !== null && (
+        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 font-semibold rounded">
+          📊 OEE Ponderado del filtro: {(oeePonderado * 100).toFixed(1)}%
+        </div>
+      )}
 
       {/* Filtro por fecha */}
       <div className="mb-4">
