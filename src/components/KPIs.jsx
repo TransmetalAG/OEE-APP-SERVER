@@ -1,24 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { catalogo } from "../data/catalogo";
-import { supabase } from "../supabaseClient"; 
+import { supabase } from "../supabaseClient";
 
 export default function KPIs() {
   const [registros, setRegistros] = useState([]);
   const [fechaFiltro, setFechaFiltro] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // 🔹 Cargar datos desde Supabase
+  // 🔹 Función para traer datos
+  const fetchData = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("registros")
+      .select("*")
+      .order("fecha", { ascending: false });
+    if (error) {
+      console.error("❌ Error cargando registros:", error.message);
+      setLoading(false);
+      return;
+    }
+    setRegistros(data || []);
+    setLoading(false);
+  };
+
+  // 🔹 Cargar al iniciar
   useEffect(() => {
-    const fetchData = async () => {
-      const { data, error } = await supabase
-        .from("registros")
-        .select("*")
-        .order("fecha", { ascending: false }); // 👉 ordenados por fecha
-      if (error) {
-        console.error("❌ Error cargando registros:", error.message);
-        return;
-      }
-      setRegistros(data || []);
-    };
     fetchData();
   }, []);
 
@@ -87,13 +93,35 @@ export default function KPIs() {
     ? registros.filter((r) => r.fecha === fechaFiltro)
     : registros;
 
+  if (loading) {
+    return <p className="p-4">⏳ Cargando datos...</p>;
+  }
+
   if (registros.length === 0) {
-    return <p className="p-4">No hay datos registrados todavía.</p>;
+    return (
+      <div className="p-4">
+        <p>No hay datos registrados todavía.</p>
+        <button
+          onClick={fetchData}
+          className="mt-2 bg-blue-600 text-white px-4 py-2"
+        >
+          🔄 Refrescar
+        </button>
+      </div>
+    );
   }
 
   return (
     <div className="p-4 bg-white shadow">
-      <h2 className="text-xl font-bold mb-4">KPIs y OEE por Máquina</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">KPIs y OEE por Máquina</h2>
+        <button
+          onClick={fetchData}
+          className="bg-blue-600 text-white px-4 py-2 rounded-none"
+        >
+          🔄 Refrescar
+        </button>
+      </div>
 
       {/* Filtro por fecha */}
       <div className="mb-4">
