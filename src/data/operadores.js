@@ -1,0 +1,22 @@
+// src/data/operadores.js
+export const operadores = [
+  { codigo: "10002636", nombre: "HERNANDEZ SOLARES MYNOR WILFREDO" },
+  { codigo: "10002212", nombre: "TELLES CORADO EDVIN ARNALDO" },
+  { codigo: "10002102", nombre: "HERNANDEZ NAVARIJO MARVIN" },
+  { codigo: "10001865", nombre: "HERRERA CONTRERAS MARCO ANTONIO" },
+  { codigo: "10002183", nombre: "PEREZ ESPINOZA ERVIN ROLANDO" },
+  { codigo: "10002634", nombre: "CUXUN CAC ELMER EMANUEL" },
+  { codigo: "10003154", nombre: "PEREZ ROSALES ALDO DANIEL" },
+  { codigo: "10003440", nombre: "MIZA JUAREZ SENDER ERNESTO" },
+  { codigo: "10004159", nombre: "CAMPOS DE LA ROSA JONATHAN ALEXANDER" },
+  { codigo: "10004290", nombre: "YOL ORTIZ SELVIN DE JESUS" },
+  { codigo: "10002261", nombre: "CIRIN GIRON ALBERT ONIEL" },
+  { codigo: "10002701", nombre: "GONZALEZ FELIPE FELIPE CUBTERTO" },
+  { codigo: "10003770", nombre: "PALENCIA CHOQUIN SERGI STUARD" },
+  { codigo: "10002630", nombre: "ESCOBAR RIVERA WILSON GEOVANY" },
+  { codigo: "10002204", nombre: "JIMENEZ MIGUEL ANGEL" },
+  { codigo: "10002170", nombre: "CUCA ANTONIO MARGARITO" },
+  { codigo: "10002313", nombre: "GARCIA CARCUZ CARLOS GIOVANY" },
+  { codigo: "10002215", nombre: "HAZ SACALXOT ERWIN NOE" },
+  { codigo: "10004865", nombre: "GUERRERO GUZMAN RONY LEONEL" },
+];
