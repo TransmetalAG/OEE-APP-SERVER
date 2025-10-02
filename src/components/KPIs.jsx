@@ -4,10 +4,11 @@ import { supabase } from "../supabaseClient";
 
 export default function KPIs() {
   const [registros, setRegistros] = useState([]);
-  const [fechaFiltro, setFechaFiltro] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 🔹 Función para traer datos
+  // 🔹 Traer datos de Supabase
   const fetchData = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -23,7 +24,6 @@ export default function KPIs() {
     setLoading(false);
   };
 
-  // 🔹 Cargar al iniciar
   useEffect(() => {
     fetchData();
   }, []);
@@ -51,15 +51,11 @@ export default function KPIs() {
     if (tiempoProgramado <= 0) return null;
 
     const parosNoPlaneados = r.paros
-      ? r.paros
-          .filter((p) => p.tipo !== "Planeado")
-          .reduce((a, b) => a + Number(b.minutos || 0), 0)
+      ? r.paros.filter((p) => p.tipo !== "Planeado").reduce((a, b) => a + Number(b.minutos || 0), 0)
       : 0;
 
     const parosPlaneados = r.paros
-      ? r.paros
-          .filter((p) => p.tipo === "Planeado")
-          .reduce((a, b) => a + Number(b.minutos || 0), 0)
+      ? r.paros.filter((p) => p.tipo === "Planeado").reduce((a, b) => a + Number(b.minutos || 0), 0)
       : 0;
 
     const tiempoOperativo = tiempoProgramado - parosNoPlaneados - parosPlaneados;
@@ -93,11 +89,14 @@ export default function KPIs() {
     };
   };
 
-  const registrosFiltrados = fechaFiltro
-    ? registros.filter((r) => r.fecha === fechaFiltro)
-    : registros;
+  // 🔹 Filtrar registros por rango
+  const registrosFiltrados = registros.filter((r) => {
+    if (fechaInicio && r.fecha < fechaInicio) return false;
+    if (fechaFin && r.fecha > fechaFin) return false;
+    return true;
+  });
 
-  // 🔹 Cálculo de OEE ponderado
+  // 🔹 OEE ponderado
   const calcularOEEPonderado = () => {
     let totalTiempo = 0;
     let sumaOEE = 0;
@@ -115,18 +114,13 @@ export default function KPIs() {
 
   const oeePonderado = calcularOEEPonderado();
 
-  if (loading) {
-    return <p className="p-4">⏳ Cargando datos...</p>;
-  }
+  if (loading) return <p className="p-4">⏳ Cargando datos...</p>;
 
   if (registros.length === 0) {
     return (
       <div className="p-4">
         <p>No hay datos registrados todavía.</p>
-        <button
-          onClick={fetchData}
-          className="mt-2 bg-blue-600 text-white px-4 py-2"
-        >
+        <button onClick={fetchData} className="mt-2 bg-blue-600 text-white px-4 py-2">
           🔄 Refrescar
         </button>
       </div>
@@ -137,10 +131,7 @@ export default function KPIs() {
     <div className="p-4 bg-white shadow">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">KPIs y OEE por Máquina</h2>
-        <button
-          onClick={fetchData}
-          className="bg-blue-600 text-white px-4 py-2 rounded-none"
-        >
+        <button onClick={fetchData} className="bg-blue-600 text-white px-4 py-2 rounded-none">
           🔄 Refrescar
         </button>
       </div>
@@ -148,24 +139,22 @@ export default function KPIs() {
       {/* OEE ponderado */}
       {oeePonderado !== null && (
         <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 font-semibold rounded">
-          📊 OEE Ponderado del filtro: {(oeePonderado * 100).toFixed(1)}%
+          📊 OEE Ponderado ({fechaInicio || "inicio"} → {fechaFin || "hoy"}): {(oeePonderado * 100).toFixed(1)}%
         </div>
       )}
 
-      {/* Filtro por fecha */}
-      <div className="mb-4">
-        <label className="font-semibold mr-2">Filtrar por fecha:</label>
-        <input
-          type="date"
-          value={fechaFiltro}
-          onChange={(e) => setFechaFiltro(e.target.value)}
-          className="border p-2"
-        />
-        {fechaFiltro && (
-          <button
-            onClick={() => setFechaFiltro("")}
-            className="ml-2 bg-gray-300 px-3 py-1"
-          >
+      {/* Filtro por rango de fechas */}
+      <div className="mb-4 flex gap-4 items-center">
+        <div>
+          <label className="font-semibold mr-2">Desde:</label>
+          <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="border p-2" />
+        </div>
+        <div>
+          <label className="font-semibold mr-2">Hasta:</label>
+          <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="border p-2" />
+        </div>
+        {(fechaInicio || fechaFin) && (
+          <button onClick={() => { setFechaInicio(""); setFechaFin(""); }} className="ml-2 bg-gray-300 px-3 py-1">
             Quitar filtro
           </button>
         )}
@@ -213,9 +202,7 @@ export default function KPIs() {
                   <td className="border p-2">{(oee.disponibilidad * 100).toFixed(1)}%</td>
                   <td className="border p-2">{(oee.desempeno * 100).toFixed(1)}%</td>
                   <td className="border p-2">{(oee.calidad * 100).toFixed(1)}%</td>
-                  <td className="border p-2 font-bold">
-                    {(oee.oee * 100).toFixed(1)}%
-                  </td>
+                  <td className="border p-2 font-bold">{(oee.oee * 100).toFixed(1)}%</td>
                 </tr>
               );
             })}
