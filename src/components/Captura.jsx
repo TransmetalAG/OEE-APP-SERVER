@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { catalogo } from "../data/catalogo";
 import { operadores } from "../data/operadores";
+import { supabase } from "../supabaseClient"; // 👈 importar el cliente
 
 export default function Captura() {
   const [form, setForm] = useState({
@@ -54,8 +55,8 @@ export default function Captura() {
     setForm({ ...form, paros: form.paros.filter((_, idx) => idx !== i) });
   };
 
-  // Validar y guardar en localStorage
-  const guardar = () => {
+  // Guardar en Supabase
+  const guardar = async () => {
     if (
       !form.fecha ||
       !form.codigo ||
@@ -80,10 +81,15 @@ export default function Captura() {
       }
     }
 
-    const registros = JSON.parse(localStorage.getItem("registros") || "[]");
-    registros.push(form);
-    localStorage.setItem("registros", JSON.stringify(registros));
-    alert("Registro guardado ✅");
+    const { error } = await supabase.from("registros").insert([form]);
+
+    if (error) {
+      console.error("❌ Error al guardar:", error.message);
+      alert("Hubo un error al guardar en la base de datos.");
+      return;
+    }
+
+    alert("Registro guardado en Supabase ✅");
 
     // Reset
     setForm({
