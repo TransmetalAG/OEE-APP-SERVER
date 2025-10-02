@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from "react";
 import { catalogo } from "../data/catalogo";
+import { supabase } from "../supabaseClient"; // 👈 importa tu cliente Supabase
 
 export default function KPIs() {
   const [registros, setRegistros] = useState([]);
   const [fechaFiltro, setFechaFiltro] = useState("");
 
+  // 🔹 Cargar datos desde Supabase
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem("registros") || "[]");
-    setRegistros(data);
+    const fetchData = async () => {
+      const { data, error } = await supabase.from("registros").select("*");
+      if (error) {
+        console.error("❌ Error cargando registros:", error.message);
+        return;
+      }
+      setRegistros(data || []);
+    };
+    fetchData();
   }, []);
 
   const calcularOEE = (r) => {
     if (!r.maquina || !r.proceso || !r.inicio || !r.fin || !r.piezasTotales || !r.piezasBuenas) {
-      return null; // ignora registros incompletos
+      return null;
     }
 
     const maquina = catalogo.find(
@@ -26,12 +35,12 @@ export default function KPIs() {
     if (tiempoProgramado <= 0) return null;
 
     const parosNoPlaneados = r.paros
-      .filter((p) => p.tipo !== "Planeado")
-      .reduce((a, b) => a + Number(b.minutos || 0), 0);
+      ? r.paros.filter((p) => p.tipo !== "Planeado").reduce((a, b) => a + Number(b.minutos || 0), 0)
+      : 0;
 
     const parosPlaneados = r.paros
-      .filter((p) => p.tipo === "Planeado")
-      .reduce((a, b) => a + Number(b.minutos || 0), 0);
+      ? r.paros.filter((p) => p.tipo === "Planeado").reduce((a, b) => a + Number(b.minutos || 0), 0)
+      : 0;
 
     const tiempoOperativo = tiempoProgramado - parosNoPlaneados - parosPlaneados;
     const tiempoOperativoNeto = r.piezasTotales / eph;
@@ -92,7 +101,7 @@ export default function KPIs() {
       </div>
 
       {/* Tabla con scroll horizontal y encabezado fijo */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-96 overflow-y-auto">
         <table className="min-w-max border text-sm">
           <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
