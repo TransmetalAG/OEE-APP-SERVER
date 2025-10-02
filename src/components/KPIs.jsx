@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { catalogo } from "../data/catalogo";
-import { supabase } from "../supabaseClient"; // 👈 importa tu cliente Supabase
+import { supabase } from "../supabaseClient"; 
 
 export default function KPIs() {
   const [registros, setRegistros] = useState([]);
@@ -9,7 +9,10 @@ export default function KPIs() {
   // 🔹 Cargar datos desde Supabase
   useEffect(() => {
     const fetchData = async () => {
-      const { data, error } = await supabase.from("registros").select("*");
+      const { data, error } = await supabase
+        .from("registros")
+        .select("*")
+        .order("fecha", { ascending: false }); // 👉 ordenados por fecha
       if (error) {
         console.error("❌ Error cargando registros:", error.message);
         return;
@@ -20,7 +23,14 @@ export default function KPIs() {
   }, []);
 
   const calcularOEE = (r) => {
-    if (!r.maquina || !r.proceso || !r.inicio || !r.fin || !r.piezasTotales || !r.piezasBuenas) {
+    if (
+      !r.maquina ||
+      !r.proceso ||
+      !r.inicio ||
+      !r.fin ||
+      !r.piezastotales ||
+      !r.piezasbuenas
+    ) {
       return null;
     }
 
@@ -35,17 +45,21 @@ export default function KPIs() {
     if (tiempoProgramado <= 0) return null;
 
     const parosNoPlaneados = r.paros
-      ? r.paros.filter((p) => p.tipo !== "Planeado").reduce((a, b) => a + Number(b.minutos || 0), 0)
+      ? r.paros
+          .filter((p) => p.tipo !== "Planeado")
+          .reduce((a, b) => a + Number(b.minutos || 0), 0)
       : 0;
 
     const parosPlaneados = r.paros
-      ? r.paros.filter((p) => p.tipo === "Planeado").reduce((a, b) => a + Number(b.minutos || 0), 0)
+      ? r.paros
+          .filter((p) => p.tipo === "Planeado")
+          .reduce((a, b) => a + Number(b.minutos || 0), 0)
       : 0;
 
     const tiempoOperativo = tiempoProgramado - parosNoPlaneados - parosPlaneados;
-    const tiempoOperativoNeto = r.piezasTotales / eph;
+    const tiempoOperativoNeto = r.piezastotales / eph;
     const perdidaRitmo = tiempoOperativo - tiempoOperativoNeto;
-    const perdidasCalidad = (r.piezasTotales - r.piezasBuenas) / eph;
+    const perdidasCalidad = (r.piezastotales - r.piezasbuenas) / eph;
     const tiempoUtil = tiempoOperativoNeto - perdidasCalidad;
 
     const disponibilidad = tiempoOperativo / tiempoProgramado;
@@ -100,7 +114,7 @@ export default function KPIs() {
         )}
       </div>
 
-      {/* Tabla con scroll horizontal y encabezado fijo */}
+      {/* Tabla */}
       <div className="overflow-x-auto max-h-96 overflow-y-auto">
         <table className="min-w-max border text-sm">
           <thead className="bg-gray-100 sticky top-0 z-10">
@@ -142,7 +156,9 @@ export default function KPIs() {
                   <td className="border p-2">{(oee.disponibilidad * 100).toFixed(1)}%</td>
                   <td className="border p-2">{(oee.desempeno * 100).toFixed(1)}%</td>
                   <td className="border p-2">{(oee.calidad * 100).toFixed(1)}%</td>
-                  <td className="border p-2 font-bold">{(oee.oee * 100).toFixed(1)}%</td>
+                  <td className="border p-2 font-bold">
+                    {(oee.oee * 100).toFixed(1)}%
+                  </td>
                 </tr>
               );
             })}
