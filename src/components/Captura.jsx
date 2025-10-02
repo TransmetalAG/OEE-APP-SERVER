@@ -13,8 +13,8 @@ export default function Captura() {
     inicio: "",
     fin: "",
     carretas: "",
-    piezasTotales: "",
-    piezasBuenas: "",
+    piezastotales: "",
+    piezasbuenas: "",
     paros: [],
   });
 
@@ -66,8 +66,8 @@ export default function Captura() {
       !form.inicio ||
       !form.fin ||
       !form.carretas ||
-      !form.piezasTotales ||
-      !form.piezasBuenas
+      !form.piezastotales ||
+      !form.piezasbuenas
     ) {
       alert("⚠️ Debes completar todos los campos antes de guardar.");
       return;
@@ -91,8 +91,8 @@ export default function Captura() {
         inicio: form.inicio,
         fin: form.fin,
         carretas: Number(form.carretas),
-        piezasTotales: Number(form.piezasTotales),
-        piezasBuenas: Number(form.piezasBuenas),
+        piezastotales: Number(form.piezastotales), // 👈 minúsculas
+        piezasbuenas: Number(form.piezasbuenas),   // 👈 minúsculas
         paros: form.paros, // JSONB en la tabla
       },
     ]);
@@ -112,8 +112,8 @@ export default function Captura() {
         inicio: "",
         fin: "",
         carretas: "",
-        piezasTotales: "",
-        piezasBuenas: "",
+        piezastotales: "",
+        piezasbuenas: "",
         paros: [],
       });
     }
@@ -226,8 +226,8 @@ export default function Captura() {
       <label className="block font-semibold">Piezas Totales</label>
       <input
         type="number"
-        name="piezasTotales"
-        value={form.piezasTotales}
+        name="piezastotales"
+        value={form.piezastotales}
         onChange={handleChange}
         className="border p-2 w-full mb-2 rounded-none"
       />
@@ -235,8 +235,8 @@ export default function Captura() {
       <label className="block font-semibold">Piezas Buenas</label>
       <input
         type="number"
-        name="piezasBuenas"
-        value={form.piezasBuenas}
+        name="piezasbuenas"
+        value={form.piezasbuenas}
         onChange={handleChange}
         className="border p-2 w-full mb-2 rounded-none"
       />
