@@ -1,5 +1,5 @@
 export const catalogo = [
-  { maquina: "Troqueladora 1", proceso: "Perforado de chumacera", eph: 20.00 },
+  { maquina: "Troqueladora 1", proceso: "Perforado de chumacera", eph: 13.33 },
   { maquina: "Troqueladora 2", proceso: "Regidez de patilla", eph: 10.00 },
   { maquina: "Troqueladora 3", proceso: "Perforado de hembra", eph: 3.722 },
   { maquina: "Troqueladora 5", proceso: "Embutido de chumacera", eph: 6.67 },
