@@ -16,7 +16,6 @@ export const catalogo = [
   { maquina: "Pintura Naranja", proceso: "-", eph: 0 },
   { maquina: "Pintura Negra", proceso: "-", eph: 0 },
   { maquina: "Serigrafía", proceso: "Serigrafía", eph: 3.722 },
-  { maquina: "Ensamble de carreta", proceso: "Ensamble de carreta", eph: 1.0 },
   { maquina: "Troqueladora 7", proceso: "Canal liviana", eph: 3.571 },
   { maquina: "Troqueladora 7", proceso: "Canal 4.5", eph: 3.077 },
   { maquina: "Troqueladora 7", proceso: "Formado en pata en V liviana", eph: 6.667 },
