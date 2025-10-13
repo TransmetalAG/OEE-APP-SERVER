@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { catalogo } from "../data/catalogo";
 import { operadores } from "../data/operadores";
 import { supabase } from "../supabaseClient";
@@ -17,6 +17,14 @@ export default function Captura() {
     piezasbuenas: "",
     paros: [],
   });
+
+  const [pendientes, setPendientes] = useState([]);
+
+  // Al montar, revisa si hay capturas pendientes
+  useEffect(() => {
+    const guardados = JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    setPendientes(guardados);
+  }, []);
 
   // Cambios generales
   const handleChange = (e) => {
@@ -55,7 +63,7 @@ export default function Captura() {
     setForm({ ...form, paros: form.paros.filter((_, idx) => idx !== i) });
   };
 
-  // Guardar en Supabase
+  // 🔄 Guardar registro (Supabase o localStorage)
   const guardar = async () => {
     if (
       !form.fecha ||
@@ -73,7 +81,6 @@ export default function Captura() {
       return;
     }
 
-    // Validar que los paros tengan datos completos
     for (let paro of form.paros) {
       if (!paro.tipo || !paro.minutos || !paro.descripcion) {
         alert("⚠️ Completa todos los campos de cada paro o elimínalos.");
@@ -81,47 +88,91 @@ export default function Captura() {
       }
     }
 
-    const { error } = await supabase.from("registros").insert([
-      {
-        fecha: form.fecha,
-        codigo: form.codigo,
-        nombre: form.nombre,
-        maquina: form.maquina,
-        proceso: form.proceso,
-        inicio: form.inicio,
-        fin: form.fin,
-        carretas: Number(form.carretas),
-        piezastotales: Number(form.piezastotales), // 👈 minúsculas
-        piezasbuenas: Number(form.piezasbuenas),   // 👈 minúsculas
-        paros: form.paros, // JSONB en la tabla
-      },
-    ]);
+    const registro = {
+      fecha: form.fecha,
+      codigo: form.codigo,
+      nombre: form.nombre,
+      maquina: form.maquina,
+      proceso: form.proceso,
+      inicio: form.inicio,
+      fin: form.fin,
+      carretas: Number(form.carretas),
+      piezastotales: Number(form.piezastotales),
+      piezasbuenas: Number(form.piezasbuenas),
+      paros: form.paros,
+    };
 
-    if (error) {
-      console.error(error);
-      alert("❌ Hubo un error al guardar en la base de datos.");
+    try {
+      const { error } = await supabase.from("registros").insert([registro]);
+      if (error) throw error;
+      alert("✅ Registro guardado en Supabase");
+    } catch (err) {
+      console.warn("Sin conexión. Guardando localmente...", err);
+      const pendientesActuales = JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+      pendientesActuales.push(registro);
+      localStorage.setItem("capturasPendientes", JSON.stringify(pendientesActuales));
+      setPendientes(pendientesActuales);
+      alert("📦 Registro guardado localmente (sin conexión)");
+    }
+
+    setForm({
+      fecha: new Date().toISOString().split("T")[0],
+      codigo: "",
+      nombre: "",
+      maquina: "",
+      proceso: "",
+      inicio: "",
+      fin: "",
+      carretas: "",
+      piezastotales: "",
+      piezasbuenas: "",
+      paros: [],
+    });
+  };
+
+  // 🔁 Sincronizar registros pendientes
+  const sincronizarPendientes = async () => {
+    const guardados = JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    if (guardados.length === 0) {
+      alert("No hay registros pendientes por sincronizar.");
+      return;
+    }
+
+    let sincronizados = 0;
+
+    for (const registro of guardados) {
+      try {
+        const { error } = await supabase.from("registros").insert([registro]);
+        if (!error) sincronizados++;
+      } catch (err) {
+        console.warn("Error al sincronizar:", err);
+      }
+    }
+
+    if (sincronizados > 0) {
+      localStorage.removeItem("capturasPendientes");
+      setPendientes([]);
+      alert(`✅ Se sincronizaron ${sincronizados} registros con Supabase.`);
     } else {
-      alert("✅ Registro guardado en la base de datos");
-
-      setForm({
-        fecha: new Date().toISOString().split("T")[0],
-        codigo: "",
-        nombre: "",
-        maquina: "",
-        proceso: "",
-        inicio: "",
-        fin: "",
-        carretas: "",
-        piezastotales: "",
-        piezasbuenas: "",
-        paros: [],
-      });
+      alert("⚠️ No se pudo sincronizar. Verifica la conexión.");
     }
   };
 
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
+
+      {pendientes.length > 0 && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-2 mb-4">
+          ⚠️ Hay {pendientes.length} registro(s) pendientes por sincronizar.
+          <button
+            onClick={sincronizarPendientes}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 ml-3 rounded"
+          >
+            🔁 Sincronizar ahora
+          </button>
+        </div>
+      )}
 
       {/* Fecha */}
       <label className="block font-semibold">Fecha</label>
@@ -156,9 +207,7 @@ export default function Captura() {
       <select
         name="maquina"
         value={form.maquina}
-        onChange={(e) =>
-          setForm({ ...form, maquina: e.target.value, proceso: "" })
-        }
+        onChange={(e) => setForm({ ...form, maquina: e.target.value, proceso: "" })}
         className="border p-2 w-full mb-2 rounded-none"
       >
         <option value="">Seleccione máquina...</option>
