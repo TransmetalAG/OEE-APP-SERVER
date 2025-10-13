@@ -108,9 +108,13 @@ export default function Captura() {
       alert("✅ Registro guardado en Supabase");
     } catch (err) {
       console.warn("Sin conexión. Guardando localmente...", err);
-      const pendientesActuales = JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+      const pendientesActuales =
+        JSON.parse(localStorage.getItem("capturasPendientes")) || [];
       pendientesActuales.push(registro);
-      localStorage.setItem("capturasPendientes", JSON.stringify(pendientesActuales));
+      localStorage.setItem(
+        "capturasPendientes",
+        JSON.stringify(pendientesActuales)
+      );
       setPendientes(pendientesActuales);
       alert("📦 Registro guardado localmente (sin conexión)");
     }
@@ -207,7 +211,9 @@ export default function Captura() {
       <select
         name="maquina"
         value={form.maquina}
-        onChange={(e) => setForm({ ...form, maquina: e.target.value, proceso: "" })}
+        onChange={(e) =>
+          setForm({ ...form, maquina: e.target.value, proceso: "" })
+        }
         className="border p-2 w-full mb-2 rounded-none"
       >
         <option value="">Seleccione máquina...</option>
@@ -238,26 +244,25 @@ export default function Captura() {
       </select>
 
       {/* Horarios */}
-<div className="flex gap-4 mb-2 flex-wrap sm:flex-nowrap">
-
-        <div className="flex-1">
-          <label className="block font-semibold">Hora Inicio</label>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between sm:gap-6 mb-3">
+        <div className="flex-1 w-full sm:mr-2">
+          <label className="block font-semibold mb-1">Hora Inicio</label>
           <input
             type="time"
             name="inicio"
             value={form.inicio}
             onChange={handleChange}
-            className="border p-2 w-full mb-2 rounded-none"
+            className="border p-2 w-full rounded-none"
           />
         </div>
-        <div className="flex-1">
-          <label className="block font-semibold">Hora Fin</label>
+        <div className="flex-1 w-full sm:ml-2 mt-2 sm:mt-0">
+          <label className="block font-semibold mb-1">Hora Fin</label>
           <input
             type="time"
             name="fin"
             value={form.fin}
             onChange={handleChange}
-            className="border p-2 w-full mb-2 rounded-none"
+            className="border p-2 w-full rounded-none"
           />
         </div>
       </div>
