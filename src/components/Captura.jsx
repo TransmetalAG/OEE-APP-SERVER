@@ -238,7 +238,8 @@ export default function Captura() {
       </select>
 
       {/* Horarios */}
-      <div className="flex gap-2">
+<div className="flex gap-4 mb-2 flex-wrap sm:flex-nowrap">
+
         <div className="flex-1">
           <label className="block font-semibold">Hora Inicio</label>
           <input
