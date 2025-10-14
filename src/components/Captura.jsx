@@ -16,13 +16,16 @@ export default function Captura() {
     piezastotales: "",
     piezasbuenas: "",
     paros: [],
+    comentario_hora: "",
+    comentario_calidad: "",
   });
 
   const [pendientes, setPendientes] = useState([]);
 
   // Al montar, revisa si hay capturas pendientes
   useEffect(() => {
-    const guardados = JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    const guardados =
+      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
     setPendientes(guardados);
   }, []);
 
@@ -100,6 +103,8 @@ export default function Captura() {
       piezastotales: Number(form.piezastotales),
       piezasbuenas: Number(form.piezasbuenas),
       paros: form.paros,
+      comentario_hora: form.comentario_hora,
+      comentario_calidad: form.comentario_calidad,
     };
 
     try {
@@ -131,12 +136,15 @@ export default function Captura() {
       piezastotales: "",
       piezasbuenas: "",
       paros: [],
+      comentario_hora: "",
+      comentario_calidad: "",
     });
   };
 
   // 🔁 Sincronizar registros pendientes
   const sincronizarPendientes = async () => {
-    const guardados = JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    const guardados =
+      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
     if (guardados.length === 0) {
       alert("No hay registros pendientes por sincronizar.");
       return;
@@ -267,6 +275,16 @@ export default function Captura() {
         </div>
       </div>
 
+      {/* Comentario de hora */}
+      <label className="block font-semibold mt-2">Comentario de horario</label>
+      <textarea
+        name="comentario_hora"
+        value={form.comentario_hora}
+        onChange={handleChange}
+        placeholder="Ejemplo: inicio retrasado por ajuste de máquina..."
+        className="border p-2 w-full mb-3 rounded-none resize-none"
+      />
+
       {/* Carretas */}
       <label className="block font-semibold">Carretas Programadas</label>
       <input
@@ -294,6 +312,16 @@ export default function Captura() {
         value={form.piezasbuenas}
         onChange={handleChange}
         className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      {/* Comentario de calidad */}
+      <label className="block font-semibold mt-2">Comentario de calidad</label>
+      <textarea
+        name="comentario_calidad"
+        value={form.comentario_calidad}
+        onChange={handleChange}
+        placeholder="Ejemplo: pérdida por defecto en lámina o ajuste..."
+        className="border p-2 w-full mb-3 rounded-none resize-none"
       />
 
       {/* Paros */}
