@@ -16,8 +16,7 @@ export default function Captura() {
     piezastotales: "",
     piezasbuenas: "",
     paros: [],
-    comentario_hora: "",
-    comentario_calidad: "",
+    comentario: "",
   });
 
   const [pendientes, setPendientes] = useState([]);
@@ -96,8 +95,7 @@ export default function Captura() {
       piezastotales: Number(form.piezastotales),
       piezasbuenas: Number(form.piezasbuenas),
       paros: form.paros,
-      comentario_hora: form.comentario_hora,
-      comentario_calidad: form.comentario_calidad,
+      comentario: form.comentario,
     };
 
     try {
@@ -129,8 +127,7 @@ export default function Captura() {
       piezastotales: "",
       piezasbuenas: "",
       paros: [],
-      comentario_hora: "",
-      comentario_calidad: "",
+      comentario: "",
     });
   };
 
@@ -262,9 +259,10 @@ export default function Captura() {
         </div>
       </div>
 
+      <label className="block font-semibold">Comentario</label>
       <textarea
-        name="comentario_hora"
-        value={form.comentario_hora}
+        name="comentario"
+        value={form.comentario}
         onChange={handleChange}
         className="border p-2 w-full mb-3 rounded-none resize-none"
       />
@@ -294,13 +292,6 @@ export default function Captura() {
         value={form.piezasbuenas}
         onChange={handleChange}
         className="border p-2 w-full mb-2 rounded-none"
-      />
-
-      <textarea
-        name="comentario_calidad"
-        value={form.comentario_calidad}
-        onChange={handleChange}
-        className="border p-2 w-full mb-3 rounded-none resize-none"
       />
 
       {/* Paros */}
