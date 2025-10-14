@@ -16,7 +16,8 @@ export default function Captura() {
     piezastotales: "",
     piezasbuenas: "",
     paros: [],
-    comentario: "",
+    comentario_hora: "",
+    comentario_calidad: "",
   });
 
   const [pendientes, setPendientes] = useState([]);
@@ -95,7 +96,8 @@ export default function Captura() {
       piezastotales: Number(form.piezastotales),
       piezasbuenas: Number(form.piezasbuenas),
       paros: form.paros,
-      comentario: form.comentario,
+      comentario_hora: form.comentario_hora,
+      comentario_calidad: form.comentario_calidad,
     };
 
     try {
@@ -127,7 +129,8 @@ export default function Captura() {
       piezastotales: "",
       piezasbuenas: "",
       paros: [],
-      comentario: "",
+      comentario_hora: "",
+      comentario_calidad: "",
     });
   };
 
@@ -236,6 +239,7 @@ export default function Captura() {
           ))}
       </select>
 
+      {/* Horarios */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between sm:gap-6 mb-3">
         <div className="flex-1 w-full sm:mr-2">
           <label className="block font-semibold mb-1">Hora Inicio</label>
@@ -259,10 +263,10 @@ export default function Captura() {
         </div>
       </div>
 
-      <label className="block font-semibold">Comentario</label>
+      <label className="block font-semibold">Comentario sobre horario</label>
       <textarea
-        name="comentario"
-        value={form.comentario}
+        name="comentario_hora"
+        value={form.comentario_hora}
         onChange={handleChange}
         className="border p-2 w-full mb-3 rounded-none resize-none"
       />
@@ -292,6 +296,14 @@ export default function Captura() {
         value={form.piezasbuenas}
         onChange={handleChange}
         className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      <label className="block font-semibold">Comentario sobre producción</label>
+      <textarea
+        name="comentario_calidad"
+        value={form.comentario_calidad}
+        onChange={handleChange}
+        className="border p-2 w-full mb-3 rounded-none resize-none"
       />
 
       {/* Paros */}
