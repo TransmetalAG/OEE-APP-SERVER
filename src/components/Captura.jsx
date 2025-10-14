@@ -22,19 +22,16 @@ export default function Captura() {
 
   const [pendientes, setPendientes] = useState([]);
 
-  // Al montar, revisa si hay capturas pendientes
   useEffect(() => {
     const guardados =
       JSON.parse(localStorage.getItem("capturasPendientes")) || [];
     setPendientes(guardados);
   }, []);
 
-  // Cambios generales
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Buscar operador por código
   const handleCodigo = (e) => {
     const codigo = e.target.value;
     const op = operadores.find((o) => o.codigo === codigo);
@@ -45,7 +42,6 @@ export default function Captura() {
     });
   };
 
-  // Agregar un paro vacío
   const agregarParo = () => {
     setForm({
       ...form,
@@ -53,7 +49,6 @@ export default function Captura() {
     });
   };
 
-  // Editar un paro
   const editarParo = (index, field, value) => {
     const nuevosParos = form.paros.map((paro, i) =>
       i === index ? { ...paro, [field]: value } : paro
@@ -61,12 +56,10 @@ export default function Captura() {
     setForm({ ...form, paros: nuevosParos });
   };
 
-  // Eliminar un paro
   const eliminarParo = (i) => {
     setForm({ ...form, paros: form.paros.filter((_, idx) => idx !== i) });
   };
 
-  // 🔄 Guardar registro (Supabase o localStorage)
   const guardar = async () => {
     if (
       !form.fecha ||
@@ -141,7 +134,6 @@ export default function Captura() {
     });
   };
 
-  // 🔁 Sincronizar registros pendientes
   const sincronizarPendientes = async () => {
     const guardados =
       JSON.parse(localStorage.getItem("capturasPendientes")) || [];
@@ -186,7 +178,6 @@ export default function Captura() {
         </div>
       )}
 
-      {/* Fecha */}
       <label className="block font-semibold">Fecha</label>
       <input
         type="date"
@@ -196,7 +187,6 @@ export default function Captura() {
         className="border p-2 w-full mb-2 rounded-none"
       />
 
-      {/* Código operador */}
       <label className="block font-semibold">Código de Operador</label>
       <input
         type="text"
@@ -214,7 +204,6 @@ export default function Captura() {
         className="border p-2 w-full mb-2 bg-gray-100 rounded-none"
       />
 
-      {/* Máquina */}
       <label className="block font-semibold">Máquina</label>
       <select
         name="maquina"
@@ -232,7 +221,6 @@ export default function Captura() {
         ))}
       </select>
 
-      {/* Proceso */}
       <label className="block font-semibold">Proceso / Pieza</label>
       <select
         name="proceso"
@@ -251,7 +239,6 @@ export default function Captura() {
           ))}
       </select>
 
-      {/* Horarios */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between sm:gap-6 mb-3">
         <div className="flex-1 w-full sm:mr-2">
           <label className="block font-semibold mb-1">Hora Inicio</label>
@@ -275,17 +262,13 @@ export default function Captura() {
         </div>
       </div>
 
-      {/* Comentario de hora */}
-      <label className="block font-semibold mt-2">Comentario de horario</label>
       <textarea
         name="comentario_hora"
         value={form.comentario_hora}
         onChange={handleChange}
-        placeholder="Ejemplo: inicio retrasado por ajuste de máquina..."
         className="border p-2 w-full mb-3 rounded-none resize-none"
       />
 
-      {/* Carretas */}
       <label className="block font-semibold">Carretas Programadas</label>
       <input
         type="number"
@@ -295,7 +278,6 @@ export default function Captura() {
         className="border p-2 w-full mb-2 rounded-none"
       />
 
-      {/* Piezas */}
       <label className="block font-semibold">Piezas Totales</label>
       <input
         type="number"
@@ -314,13 +296,10 @@ export default function Captura() {
         className="border p-2 w-full mb-2 rounded-none"
       />
 
-      {/* Comentario de calidad */}
-      <label className="block font-semibold mt-2">Comentario de calidad</label>
       <textarea
         name="comentario_calidad"
         value={form.comentario_calidad}
         onChange={handleChange}
-        placeholder="Ejemplo: pérdida por defecto en lámina o ajuste..."
         className="border p-2 w-full mb-3 rounded-none resize-none"
       />
 
@@ -375,7 +354,6 @@ export default function Captura() {
         </button>
       </div>
 
-      {/* Botón Guardar */}
       <button
         onClick={guardar}
         className="bg-green-600 text-white px-4 py-2 rounded-none mt-4"
