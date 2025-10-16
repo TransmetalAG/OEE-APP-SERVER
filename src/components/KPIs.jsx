@@ -40,10 +40,20 @@ export default function KPIs() {
       return null;
     }
 
+    // 🔹 Normalización para evitar errores por tildes o mayúsculas
+    const normalize = (txt) =>
+      txt
+        ? txt.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+        : "";
+
     const maquina = catalogo.find(
-      (m) => m.maquina === r.maquina && m.proceso === r.proceso
+      (m) =>
+        normalize(m.maquina) === normalize(r.maquina) &&
+        normalize(m.proceso) === normalize(r.proceso)
     );
-    const eph = maquina && maquina.eph ? Number(maquina.eph) : 1;
+
+    const eph = maquina?.eph ? Number(maquina.eph) : 1;
+    // console.log("🧩", r.maquina, r.proceso, "→ EPH:", eph);
 
     const inicio = new Date(`1970-01-01T${r.inicio}:00`);
     const fin = new Date(`1970-01-01T${r.fin}:00`);
@@ -51,14 +61,19 @@ export default function KPIs() {
     if (tiempoProgramado <= 0) return null;
 
     const parosNoPlaneados = r.paros
-      ? r.paros.filter((p) => p.tipo !== "Planeado").reduce((a, b) => a + Number(b.minutos || 0), 0)
+      ? r.paros
+          .filter((p) => p.tipo !== "Planeado")
+          .reduce((a, b) => a + Number(b.minutos || 0), 0)
       : 0;
 
     const parosPlaneados = r.paros
-      ? r.paros.filter((p) => p.tipo === "Planeado").reduce((a, b) => a + Number(b.minutos || 0), 0)
+      ? r.paros
+          .filter((p) => p.tipo === "Planeado")
+          .reduce((a, b) => a + Number(b.minutos || 0), 0)
       : 0;
 
-    const tiempoOperativo = tiempoProgramado - parosNoPlaneados - parosPlaneados;
+    const tiempoOperativo =
+      tiempoProgramado - parosNoPlaneados - parosPlaneados;
     const tiempoOperativoNeto = r.piezastotales / eph;
     const perdidaRitmo = tiempoOperativo - tiempoOperativoNeto;
     const perdidasCalidad = (r.piezastotales - r.piezasbuenas) / eph;
@@ -67,10 +82,12 @@ export default function KPIs() {
     const disponibilidad = tiempoOperativo / tiempoProgramado;
 
     // 🔹 Desempeño limitado a 100%
-    let desempeno = tiempoOperativo > 0 ? tiempoOperativoNeto / tiempoOperativo : 0;
+    let desempeno =
+      tiempoOperativo > 0 ? tiempoOperativoNeto / tiempoOperativo : 0;
     desempeno = Math.min(desempeno, 1);
 
-    const calidad = tiempoOperativoNeto > 0 ? tiempoUtil / tiempoOperativoNeto : 0;
+    const calidad =
+      tiempoOperativoNeto > 0 ? tiempoUtil / tiempoOperativoNeto : 0;
     const oeeFinal = disponibilidad * desempeno * calidad;
 
     return {
@@ -109,7 +126,7 @@ export default function KPIs() {
       }
     });
 
-    return totalTiempo > 0 ? (sumaOEE / totalTiempo) : null;
+    return totalTiempo > 0 ? sumaOEE / totalTiempo : null;
   };
 
   const oeePonderado = calcularOEEPonderado();
@@ -120,7 +137,10 @@ export default function KPIs() {
     return (
       <div className="p-4">
         <p>No hay datos registrados todavía.</p>
-        <button onClick={fetchData} className="mt-2 bg-blue-600 text-white px-4 py-2">
+        <button
+          onClick={fetchData}
+          className="mt-2 bg-blue-600 text-white px-4 py-2"
+        >
           🔄 Refrescar
         </button>
       </div>
@@ -131,7 +151,10 @@ export default function KPIs() {
     <div className="p-4 bg-white shadow">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">KPIs y OEE por Máquina</h2>
-        <button onClick={fetchData} className="bg-blue-600 text-white px-4 py-2 rounded-none">
+        <button
+          onClick={fetchData}
+          className="bg-blue-600 text-white px-4 py-2 rounded-none"
+        >
           🔄 Refrescar
         </button>
       </div>
@@ -139,7 +162,8 @@ export default function KPIs() {
       {/* OEE ponderado */}
       {oeePonderado !== null && (
         <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 font-semibold rounded">
-          📊 OEE Ponderado ({fechaInicio || "inicio"} → {fechaFin || "hoy"}): {(oeePonderado * 100).toFixed(1)}%
+          📊 OEE Ponderado ({fechaInicio || "inicio"} →{" "}
+          {fechaFin || "hoy"}): {(oeePonderado * 100).toFixed(1)}%
         </div>
       )}
 
@@ -147,14 +171,30 @@ export default function KPIs() {
       <div className="mb-4 flex gap-4 items-center">
         <div>
           <label className="font-semibold mr-2">Desde:</label>
-          <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="border p-2" />
+          <input
+            type="date"
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
+            className="border p-2"
+          />
         </div>
         <div>
           <label className="font-semibold mr-2">Hasta:</label>
-          <input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="border p-2" />
+          <input
+            type="date"
+            value={fechaFin}
+            onChange={(e) => setFechaFin(e.target.value)}
+            className="border p-2"
+          />
         </div>
         {(fechaInicio || fechaFin) && (
-          <button onClick={() => { setFechaInicio(""); setFechaFin(""); }} className="ml-2 bg-gray-300 px-3 py-1">
+          <button
+            onClick={() => {
+              setFechaInicio("");
+              setFechaFin("");
+            }}
+            className="ml-2 bg-gray-300 px-3 py-1"
+          >
             Quitar filtro
           </button>
         )}
@@ -199,10 +239,18 @@ export default function KPIs() {
                   <td className="border p-2">{oee.tiempoOperativoNeto.toFixed(1)}</td>
                   <td className="border p-2">{oee.perdidasCalidad.toFixed(1)}</td>
                   <td className="border p-2">{oee.tiempoUtil.toFixed(1)}</td>
-                  <td className="border p-2">{(oee.disponibilidad * 100).toFixed(1)}%</td>
-                  <td className="border p-2">{(oee.desempeno * 100).toFixed(1)}%</td>
-                  <td className="border p-2">{(oee.calidad * 100).toFixed(1)}%</td>
-                  <td className="border p-2 font-bold">{(oee.oee * 100).toFixed(1)}%</td>
+                  <td className="border p-2">
+                    {(oee.disponibilidad * 100).toFixed(1)}%
+                  </td>
+                  <td className="border p-2">
+                    {(oee.desempeno * 100).toFixed(1)}%
+                  </td>
+                  <td className="border p-2">
+                    {(oee.calidad * 100).toFixed(1)}%
+                  </td>
+                  <td className="border p-2 font-bold">
+                    {(oee.oee * 100).toFixed(1)}%
+                  </td>
                 </tr>
               );
             })}
