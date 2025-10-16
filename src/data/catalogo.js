@@ -9,7 +9,7 @@ export const catalogo = [
   { maquina: "Embutidora 315", proceso: "Corona", eph: 1.25 },
   { maquina: "Embutidora 315", proceso: "Embutido", eph: 1.083 },
   { maquina: "Perforadora de tolva", proceso: "Perforado de tolva", eph: 2 },
-  { maquina: "Pintura Electroestatica", proceso: "Pintura de piezas", eph: 0.068 },
+  { maquina: "Pintura Electroestatica", proceso: "Pintura de piezas", eph: 14.71 },
   { maquina: "Serigrafía", proceso: "Serigrafía", eph: 3.722 },
   { maquina: "Sierra de Cinta", proceso: "Tubito", eph: 0 },
   { maquina: "Troqueladora 1", proceso: "Perforado de chumacera", eph: 13.33 },
