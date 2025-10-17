@@ -11,7 +11,7 @@ export const catalogo = [
   { maquina: "Perforadora de tolva", proceso: "Perforado de tolva", eph: 2 },
   { maquina: "Pintura Electroestatica", proceso: "Pintura de piezas", eph: 22 },
   { maquina: "Serigrafía", proceso: "Serigrafía", eph: 3.722 },
-  { maquina: "Sierra de Cinta", proceso: "Tubito", eph: 0 },
+  { maquina: "Sierra de Cinta", proceso: "Tubito", eph: 10 },
   { maquina: "Troqueladora 1", proceso: "Perforado de chumacera", eph: 13.33 },
   { maquina: "Troqueladora 2", proceso: "Regidez de patilla", eph: 10.0 },
   { maquina: "Troqueladora 3", proceso: "Perforado de hembra", eph: 10.91 },
