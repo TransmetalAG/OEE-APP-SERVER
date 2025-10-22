@@ -134,7 +134,7 @@ export default function KPIs() {
 
   const oeePonderado = calcularOEEPonderado();
 
-  // 🔹 Exportar a Excel
+  // 🔹 Exportar a Excel (actualizado)
   const exportarExcel = () => {
     const datosExport = registrosFiltrados
       .map((r) => calcularOEE(r))
@@ -148,6 +148,8 @@ export default function KPIs() {
         "Paros No Planeados (min)": oee.parosNoPlaneados,
         "Piezas Buenas": oee.piezasBuenas,
         "Piezas Malas": oee.piezasMalas,
+        "Tiempo Operativo Neto (min)": oee.tiempoOperativoNeto.toFixed(1),
+        "Tiempo Útil (min)": oee.tiempoUtil.toFixed(1),
         "Disponibilidad (%)": (oee.disponibilidad * 100).toFixed(1),
         "Desempeño (%)": (oee.desempeno * 100).toFixed(1),
         "Calidad (%)": (oee.calidad * 100).toFixed(1),
