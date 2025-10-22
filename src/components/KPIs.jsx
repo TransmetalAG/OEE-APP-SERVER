@@ -132,9 +132,26 @@ export default function KPIs() {
     return totalTiempo > 0 ? sumaOEE / totalTiempo : null;
   };
 
-  const oeePonderado = calcularOEEPonderado();
+  // 🔹 Nueva función: Disponibilidad ponderada
+  const calcularDisponibilidadPonderada = () => {
+    let totalProgramado = 0;
+    let totalOperativo = 0;
 
-  // 🔹 Exportar a Excel (actualizado)
+    registrosFiltrados.forEach((r) => {
+      const oee = calcularOEE(r);
+      if (oee) {
+        totalOperativo += oee.tiempoOperativo;
+        totalProgramado += oee.tiempoProgramado;
+      }
+    });
+
+    return totalProgramado > 0 ? totalOperativo / totalProgramado : null;
+  };
+
+  const oeePonderado = calcularOEEPonderado();
+  const disponibilidadPonderada = calcularDisponibilidadPonderada();
+
+  // 🔹 Exportar a Excel (sin cambios)
   const exportarExcel = () => {
     const datosExport = registrosFiltrados
       .map((r) => calcularOEE(r))
@@ -205,13 +222,23 @@ export default function KPIs() {
         </div>
       </div>
 
-      {oeePonderado !== null && (
-        <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 font-semibold rounded">
-          📊 OEE Ponderado ({fechaInicio || "inicio"} →{" "}
-          {fechaFin || "hoy"}): {(oeePonderado * 100).toFixed(1)}%
-        </div>
-      )}
+      {/* 🔹 KPIs globales */}
+      <div className="mb-4 grid md:grid-cols-2 gap-3">
+        {oeePonderado !== null && (
+          <div className="p-3 bg-green-100 border border-green-400 text-green-700 font-semibold rounded">
+            📊 OEE Ponderado ({fechaInicio || "inicio"} → {fechaFin || "hoy"}):{" "}
+            {(oeePonderado * 100).toFixed(1)}%
+          </div>
+        )}
+        {disponibilidadPonderada !== null && (
+          <div className="p-3 bg-blue-100 border border-blue-400 text-blue-700 font-semibold rounded">
+            ⏱️ Disponibilidad Ponderada ({fechaInicio || "inicio"} →{" "}
+            {fechaFin || "hoy"}): {(disponibilidadPonderada * 100).toFixed(1)}%
+          </div>
+        )}
+      </div>
 
+      {/* 🔹 Filtros */}
       <div className="mb-4 flex gap-4 items-center">
         <div>
           <label className="font-semibold mr-2">Desde:</label>
@@ -244,6 +271,7 @@ export default function KPIs() {
         )}
       </div>
 
+      {/* 🔹 Tabla */}
       <div className="overflow-x-auto max-h-96 overflow-y-auto">
         <table className="min-w-max border text-sm">
           <thead className="bg-gray-100 sticky top-0 z-10">
