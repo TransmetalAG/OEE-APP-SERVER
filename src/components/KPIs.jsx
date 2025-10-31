@@ -30,7 +30,17 @@ export default function KPIs() {
     fetchData();
   }, []);
 
-  // 🔹 Función de cálculo OEE por registro
+  // 🔹 Función para parsear fechas (acepta DD/MM/YYYY o YYYY-MM-DD)
+  const parseFecha = (fechaStr) => {
+    if (!fechaStr) return null;
+    if (fechaStr.includes("/")) {
+      const [d, m, y] = fechaStr.split("/");
+      return new Date(`${y}-${m}-${d}`);
+    }
+    return new Date(fechaStr);
+  };
+
+  // 🔹 Calcular OEE por registro
   const calcularOEE = (r) => {
     if (
       !r.maquina ||
@@ -104,70 +114,38 @@ export default function KPIs() {
     };
   };
 
-  // 🔹 Filtros de fecha
+  // 🔹 Filtro de fechas (ahora con parseo)
   const registrosFiltrados = registros.filter((r) => {
-    if (fechaInicio && r.fecha < fechaInicio) return false;
-    if (fechaFin && r.fecha > fechaFin) return false;
+    const fechaRegistro = parseFecha(r.fecha);
+    const desde = parseFecha(fechaInicio);
+    const hasta = parseFecha(fechaFin);
+
+    if (desde && fechaRegistro < desde) return false;
+    if (hasta && fechaRegistro > hasta) return false;
     return true;
   });
 
-  // 🔹 Cálculos globales ponderados
-  const calcularOEEPonderado = () => {
-    let totalTiempo = 0;
-    let sumaOEE = 0;
+  // 🔹 Cálculos ponderados
+  const calcularPonderado = (campoNumerador, campoDenominador) => {
+    let numerador = 0;
+    let denominador = 0;
     registrosFiltrados.forEach((r) => {
       const oee = calcularOEE(r);
       if (oee) {
-        sumaOEE += oee.oee * oee.tiempoProgramado;
-        totalTiempo += oee.tiempoProgramado;
+        numerador += oee[campoNumerador];
+        denominador += oee[campoDenominador];
       }
     });
-    return totalTiempo > 0 ? sumaOEE / totalTiempo : null;
+    return denominador > 0 ? numerador / denominador : null;
   };
 
-  const calcularDisponibilidadPonderada = () => {
-    let totalProgramado = 0;
-    let totalOperativo = 0;
-    registrosFiltrados.forEach((r) => {
-      const oee = calcularOEE(r);
-      if (oee) {
-        totalOperativo += oee.tiempoOperativo;
-        totalProgramado += oee.tiempoProgramado;
-      }
-    });
-    return totalProgramado > 0 ? totalOperativo / totalProgramado : null;
-  };
-
-  const calcularDesempenoPonderado = () => {
-    let totalOperativo = 0;
-    let totalNeto = 0;
-    registrosFiltrados.forEach((r) => {
-      const oee = calcularOEE(r);
-      if (oee) {
-        totalNeto += oee.tiempoOperativoNeto;
-        totalOperativo += oee.tiempoOperativo;
-      }
-    });
-    return totalOperativo > 0 ? totalNeto / totalOperativo : null;
-  };
-
-  const calcularCalidadPonderada = () => {
-    let totalNeto = 0;
-    let totalUtil = 0;
-    registrosFiltrados.forEach((r) => {
-      const oee = calcularOEE(r);
-      if (oee) {
-        totalUtil += oee.tiempoUtil;
-        totalNeto += oee.tiempoOperativoNeto;
-      }
-    });
-    return totalNeto > 0 ? totalUtil / totalNeto : null;
-  };
-
-  const oeePonderado = calcularOEEPonderado();
-  const disponibilidadPonderada = calcularDisponibilidadPonderada();
-  const desempenoPonderado = calcularDesempenoPonderado();
-  const calidadPonderada = calcularCalidadPonderada();
+  const disponibilidadPonderada = calcularPonderado("tiempoOperativo", "tiempoProgramado");
+  const desempenoPonderado = calcularPonderado("tiempoOperativoNeto", "tiempoOperativo");
+  const calidadPonderada = calcularPonderado("tiempoUtil", "tiempoOperativoNeto");
+  const oeePonderado =
+    disponibilidadPonderada && desempenoPonderado && calidadPonderada
+      ? disponibilidadPonderada * desempenoPonderado * calidadPonderada
+      : null;
 
   // 🔹 Exportar Excel
   const exportarExcel = () => {
@@ -221,40 +199,65 @@ export default function KPIs() {
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">KPIs y OEE por Máquina</h2>
         <div className="flex gap-2">
-          <button onClick={fetchData} className="bg-blue-600 text-white px-4 py-2 rounded-none">
+          <button onClick={fetchData} className="bg-blue-600 text-white px-4 py-2">
             🔄 Refrescar
           </button>
-          <button onClick={exportarExcel} className="bg-green-600 text-white px-4 py-2 rounded-none">
+          <button onClick={exportarExcel} className="bg-green-600 text-white px-4 py-2">
             📤 Exportar Excel
           </button>
         </div>
       </div>
 
-      {/* KPIs globales */}
+      {/* 🔹 KPIs globales */}
       <div className="mb-4 grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {oeePonderado !== null && (
-          <div className="p-3 bg-green-100 border border-green-400 text-green-700 font-semibold rounded">
-            📊 OEE Ponderado: {(oeePonderado * 100).toFixed(1)}%
-          </div>
-        )}
-        {disponibilidadPonderada !== null && (
-          <div className="p-3 bg-blue-100 border border-blue-400 text-blue-700 font-semibold rounded">
-            ⏱️ Disponibilidad: {(disponibilidadPonderada * 100).toFixed(1)}%
-          </div>
-        )}
-        {desempenoPonderado !== null && (
-          <div className="p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 font-semibold rounded">
-            ⚙️ Desempeño: {(desempenoPonderado * 100).toFixed(1)}%
-          </div>
-        )}
-        {calidadPonderada !== null && (
-          <div className="p-3 bg-purple-100 border border-purple-400 text-purple-700 font-semibold rounded">
-            🧩 Calidad: {(calidadPonderada * 100).toFixed(1)}%
-          </div>
+        <div className="p-3 bg-green-100 border border-green-400 text-green-700 font-semibold rounded">
+          📊 OEE: {(oeePonderado * 100 || 0).toFixed(1)}%
+        </div>
+        <div className="p-3 bg-blue-100 border border-blue-400 text-blue-700 font-semibold rounded">
+          ⏱️ Disponibilidad: {(disponibilidadPonderada * 100 || 0).toFixed(1)}%
+        </div>
+        <div className="p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 font-semibold rounded">
+          ⚙️ Desempeño: {(desempenoPonderado * 100 || 0).toFixed(1)}%
+        </div>
+        <div className="p-3 bg-purple-100 border border-purple-400 text-purple-700 font-semibold rounded">
+          🧩 Calidad: {(calidadPonderada * 100 || 0).toFixed(1)}%
+        </div>
+      </div>
+
+      {/* 🔹 Filtros de fecha */}
+      <div className="mb-4 flex gap-4 items-center">
+        <div>
+          <label className="font-semibold mr-2">Desde:</label>
+          <input
+            type="date"
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
+            className="border p-2"
+          />
+        </div>
+        <div>
+          <label className="font-semibold mr-2">Hasta:</label>
+          <input
+            type="date"
+            value={fechaFin}
+            onChange={(e) => setFechaFin(e.target.value)}
+            className="border p-2"
+          />
+        </div>
+        {(fechaInicio || fechaFin) && (
+          <button
+            onClick={() => {
+              setFechaInicio("");
+              setFechaFin("");
+            }}
+            className="ml-2 bg-gray-300 px-3 py-1"
+          >
+            Quitar filtro
+          </button>
         )}
       </div>
 
-      {/* Tabla de resultados */}
+      {/* 🔹 Tabla */}
       <div className="overflow-x-auto max-h-96 overflow-y-auto">
         <table className="min-w-max border text-sm">
           <thead className="bg-gray-100 sticky top-0 z-10">
@@ -278,8 +281,6 @@ export default function KPIs() {
               <th className="border p-2">OEE</th>
             </tr>
           </thead>
-
-          {/* 🔹 Cuerpo con fila total incluida */}
           <tbody>
             {registrosFiltrados.map((r, i) => {
               const oee = calcularOEE(r);
