@@ -19,4 +19,5 @@ export const operadores = [
   { codigo: "10002675", nombre: "GARCIA CARCUZ CARLOS GIOVANY" },
   { codigo: "10002213", nombre: "HAZ SACALXOT ERWIN NOE" },
   { codigo: "10004865", nombre: "GUERRERO GUZMAN RONY LEONEL" },
+  { codigo: "10004938", nombre: "SUQUE REYES ERIK SANTIAGO " },
 ];
