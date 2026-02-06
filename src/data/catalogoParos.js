@@ -1,91 +1,213 @@
-export const catalogoParos = {
-  "Embutidora 315": [
-    { paro: "Pérdida de presión", causa: "Mecánica" },
-    { paro: "Cambio de molde", causa: "Operacional" },
-    { paro: "Fuga de aceite", causa: "Mecánica" },
-    { paro: "Calibración de presiones", causa: "Operacional" },
-    { paro: "Calibración de sensores", causa: "Operacional" },
-    { paro: "Falla en Relé", causa: "Eléctrica" },
-    { paro: "No acciona", causa: "Mecánica" },
-    { paro: "No acciona", causa: "Eléctrica" },
-    { paro: "Falla en molde", causa: "Mecánica" }
-  ],
+import React, { useState, useEffect } from "react";
+import { catalogo } from "../data/catalogo";
+import { operadores } from "../data/operadores";
+import { catalogoParos } from "../data/catalogoParos";
+import { supabase } from "../supabaseClient";
 
-  "Embutidora 200": [
-    { paro: "Pérdida de presión", causa: "Mecánica" },
-    { paro: "Cambio de molde", causa: "Operacional" },
-    { paro: "Fuga de aceite", causa: "Mecánica" },
-    { paro: "Calibración de presiones", causa: "Mecánica" },
-    { paro: "Calibración de sensores", causa: "Operacional" },
-    { paro: "Falla en Relé", causa: "Eléctrica" },
-    { paro: "Falla en molde", causa: "Mecánica" }
-  ],
+export default function Captura() {
+  const [form, setForm] = useState({
+    fecha: new Date().toISOString().split("T")[0],
+    codigo: "",
+    nombre: "",
+    maquina: "",
+    proceso: "",
+    inicio: "",
+    fin: "",
+    carretas: "",
+    piezastotales: "",
+    piezasbuenas: "",
+    paros: [],
+    comentario_hora: "",
+    comentario_calidad: "",
+  });
 
-  "Perforado": [
-    { paro: "Pérdida de presión", causa: "Mecánica" },
-    { paro: "Cambio de punzones", causa: "Operacional" }
-  ],
+  const [pendientes, setPendientes] = useState([]);
 
-  "Tubo": [
-    { paro: "Desajuste de lanza de dobladora", causa: "Mecánica" },
-    { paro: "Desajuste de mordaza de dobladora", causa: "Mecánica" },
-    { paro: "No dobla el tubo correctamente", causa: "Mecánica" },
-    { paro: "Desajuste de sensor", causa: "Eléctrica" },
-    { paro: "Reventadura de cadena de dobladora", causa: "Mecánica" },
-    { paro: "Falta de presión", causa: "Mecánica" },
-    { paro: "No acciona la dobladora", causa: "Eléctrica" },
-    { paro: "No regresa la dobladora", causa: "Eléctrica" },
-    { paro: "Tubo golpeado o con mal ángulo", causa: "Mecánica" },
-    { paro: "Formadora no acciona", causa: "Mecánica" },
-    { paro: "Formadora no acciona", causa: "Eléctrica" },
-    { paro: "Cambio de punzones", causa: "Mecánica" },
-    { paro: "Resortes quebrados", causa: "Mecánica" },
-    { paro: "Tubo mal perforado por tope", causa: "Mecánica" },
-    { paro: "Perforadora no acciona", causa: "Mecánica" },
-    { paro: "Perforadora no acciona", causa: "Eléctrica" },
-    { paro: "Perforadora no embraga", causa: "Mecánica" },
-    { paro: "Embrague de perforadora", causa: "Mecánica" },
-    { paro: "Falla en cuña de perforadora", causa: "Mecánica" },
-    { paro: "Faja de volante reventada", causa: "Mecánica" },
-    { paro: "Falla en freno de perforadora", causa: "Mecánica" },
-    { paro: "Falla en polea de perforadora", causa: "Mecánica" },
-    { paro: "Falla en pedal de perforadora", causa: "Mecánica" },
-    { paro: "Falla en botonera de perforadora", causa: "Eléctrica" },
-    { paro: "Falla en palanca de perforadora", causa: "Mecánica" },
-    { paro: "Falla en sujetadores de molde", causa: "Mecánica" },
-    { paro: "Falla en tablero eléctrico local", causa: "Eléctrica" }
-  ],
+  useEffect(() => {
+    const guardados =
+      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    setPendientes(guardados);
+  }, []);
 
-  "Serigrafía": [
-    { paro: "Problema con manta de serigrafía", causa: "Operacional" },
-    { paro: "Problema con sujetador de marco", causa: "Mecánica" },
-    { paro: "Falla de mesa giratoria", causa: "Mecánica" },
-    { paro: "Falla de molde sujetador de tolva", causa: "Mecánica" }
-  ],
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  "Pintura Electroestática": [
-    { paro: "Falla en quemador", causa: "Mecánica" },
-    { paro: "Motor de ventilador", causa: "Mecánica" },
-    { paro: "Arrastre de cadena", causa: "Mecánica" },
-    { paro: "Cadena de traslado de piezas", causa: "Mecánica" },
-    { paro: "Lubricación de cadena", causa: "Mecánica" },
-    { paro: "Extractores de vapores", causa: "Mecánica" },
-    { paro: "Panel principal", causa: "Eléctrica" },
-    { paro: "Panel local de ciclón", causa: "Eléctrica" },
-    { paro: "Pistolas de pintura", causa: "Mecánica" },
-    { paro: "Panel de calibración de pistolas", causa: "Eléctrica" },
-    { paro: "Sistema de carrera de pistolas", causa: "Mecánica" },
-    { paro: "Sistema de carrera de pistolas", causa: "Eléctrica" },
-    { paro: "Mangueras neumáticas", causa: "Mecánica" },
-    { paro: "Unidad de mantenimiento", causa: "Mecánica" },
-    { paro: "Tubería neumática", causa: "Mecánica" },
-    { paro: "Electroválvulas", causa: "Mecánica" },
-    { paro: "Ciclón principal", causa: "Mecánica" },
-    { paro: "Filtros de pintura", causa: "Mecánica" },
-    { paro: "Cernidores de pintura", causa: "Mecánica" },
-    { paro: "Cernidores de pintura", causa: "Eléctrica" },
-    { paro: "Cernido de pintura", causa: "Operacional" },
-    { paro: "Cerchas de materiales", causa: "Operacional" },
-    { paro: "Ganchos de cadena", causa: "Operacional" }
-  ]
-};
+  const handleCodigo = (e) => {
+    const codigo = e.target.value;
+    const op = operadores.find((o) => o.codigo === codigo);
+    setForm({
+      ...form,
+      codigo,
+      nombre: op ? op.nombre : "",
+    });
+  };
+
+  /* =========================
+     PAROS HCA
+     ========================= */
+
+  const agregarParo = () => {
+    setForm({
+      ...form,
+      paros: [
+        ...form.paros,
+        { hecho: "", causa: "", accion: "", minutos: "" },
+      ],
+    });
+  };
+
+  const editarParo = (index, field, value) => {
+    const nuevosParos = form.paros.map((p, i) =>
+      i === index ? { ...p, [field]: value } : p
+    );
+    setForm({ ...form, paros: nuevosParos });
+  };
+
+  const eliminarParo = (index) => {
+    setForm({
+      ...form,
+      paros: form.paros.filter((_, i) => i !== index),
+    });
+  };
+
+  const guardar = async () => {
+    if (
+      !form.fecha ||
+      !form.codigo ||
+      !form.nombre ||
+      !form.maquina ||
+      !form.proceso ||
+      !form.inicio ||
+      !form.fin ||
+      !form.carretas ||
+      !form.piezastotales ||
+      !form.piezasbuenas
+    ) {
+      alert("⚠️ Debes completar todos los campos antes de guardar.");
+      return;
+    }
+
+    for (let paro of form.paros) {
+      if (!paro.hecho || !paro.causa || !paro.accion || !paro.minutos) {
+        alert("⚠️ Completa Hecho, Causa, Acción y Tiempo en cada paro.");
+        return;
+      }
+    }
+
+    const registro = {
+      fecha: form.fecha,
+      codigo: form.codigo,
+      nombre: form.nombre,
+      maquina: form.maquina,
+      proceso: form.proceso,
+      inicio: form.inicio,
+      fin: form.fin,
+      carretas: Number(form.carretas),
+      piezastotales: Number(form.piezastotales),
+      piezasbuenas: Number(form.piezasbuenas),
+      paros: form.paros,
+      comentario_hora: form.comentario_hora,
+      comentario_calidad: form.comentario_calidad,
+    };
+
+    try {
+      const { error } = await supabase.from("registros").insert([registro]);
+      if (error) throw error;
+      alert("✅ Registro guardado en Supabase");
+    } catch (err) {
+      const pendientesActuales =
+        JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+      pendientesActuales.push(registro);
+      localStorage.setItem(
+        "capturasPendientes",
+        JSON.stringify(pendientesActuales)
+      );
+      setPendientes(pendientesActuales);
+      alert("📦 Registro guardado localmente (sin conexión)");
+    }
+
+    setForm({
+      fecha: new Date().toISOString().split("T")[0],
+      codigo: "",
+      nombre: "",
+      maquina: "",
+      proceso: "",
+      inicio: "",
+      fin: "",
+      carretas: "",
+      piezastotales: "",
+      piezasbuenas: "",
+      paros: [],
+      comentario_hora: "",
+      comentario_calidad: "",
+    });
+  };
+
+  const sincronizarPendientes = async () => {
+    const guardados =
+      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    if (guardados.length === 0) return;
+
+    for (const registro of guardados) {
+      await supabase.from("registros").insert([registro]);
+    }
+
+    localStorage.removeItem("capturasPendientes");
+    setPendientes([]);
+    alert("✅ Registros sincronizados");
+  };
+
+  return (
+    <div className="p-4 bg-white shadow">
+      <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
+
+      {pendientes.length > 0 && (
+        <div className="bg-yellow-100 p-2 mb-4">
+          ⚠️ Hay registros pendientes
+          <button
+            onClick={sincronizarPendientes}
+            className="ml-3 bg-yellow-600 text-white px-3 py-1"
+          >
+            Sincronizar
+          </button>
+        </div>
+      )}
+
+      {/* === DATOS GENERALES === */}
+      <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="text" placeholder="Código operador" value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
+      <input type="text" value={form.nombre} disabled className="border p-2 w-full mb-2 bg-gray-100" />
+
+      <select
+        value={form.maquina}
+        onChange={(e) => setForm({ ...form, maquina: e.target.value, proceso: "" })}
+        className="border p-2 w-full mb-2"
+      >
+        <option value="">Seleccione máquina...</option>
+        {[...new Set(catalogo.map((m) => m.maquina))].map((m, i) => (
+          <option key={i} value={m}>{m}</option>
+        ))}
+      </select>
+
+      <select
+        value={form.proceso}
+        onChange={handleChange}
+        name="proceso"
+        disabled={!form.maquina}
+        className="border p-2 w-full mb-2"
+      >
+        <option value="">Seleccione proceso...</option>
+        {catalogo.filter(m => m.maquina === form.maquina).map((m, i) => (
+          <option key={i} value={m.proceso}>{m.proceso}</option>
+        ))}
+      </select>
+
+      {/* === PAROS HCA === */}
+      <h3 className="font-semibold mt-4 mb-2">Paros (HCA)</h3>
+
+      {form.paros.map((p, i) => (
+        <div key={i} className="border p-3 mb-3">
+          <select
+            value={p.hecho}
+            onChange={(e) => editarParo(i, "hecho", e.target
