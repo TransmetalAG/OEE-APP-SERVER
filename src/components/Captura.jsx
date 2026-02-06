@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { catalogo } from "../data/catalogo";
 import { operadores } from "../data/operadores";
-import { catalogoParos } from "../data/catalogoParos";
 import { supabase } from "../supabaseClient";
 
 export default function Captura() {
@@ -46,16 +45,7 @@ export default function Captura() {
   const agregarParo = () => {
     setForm({
       ...form,
-      paros: [
-        ...form.paros,
-        {
-          hecho: "",
-          causa: "",
-          accion: "",
-          minutos: "",
-          clasificacion: "",
-        },
-      ],
+      paros: [...form.paros, { tipo: "", minutos: "", descripcion: "" }],
     });
   };
 
@@ -88,10 +78,8 @@ export default function Captura() {
     }
 
     for (let paro of form.paros) {
-      if (!paro.hecho || !paro.causa || !paro.accion || !paro.minutos) {
-        alert(
-          "⚠️ En cada paro debes completar Hecho, Causa, Acción y Tiempo (min)."
-        );
+      if (!paro.tipo || !paro.minutos || !paro.descripcion) {
+        alert("⚠️ Completa todos los campos de cada paro o elimínalos.");
         return;
       }
     }
@@ -117,6 +105,7 @@ export default function Captura() {
       if (error) throw error;
       alert("✅ Registro guardado en Supabase");
     } catch (err) {
+      console.warn("Sin conexión. Guardando localmente...", err);
       const pendientesActuales =
         JSON.parse(localStorage.getItem("capturasPendientes")) || [];
       pendientesActuales.push(registro);
@@ -145,71 +134,219 @@ export default function Captura() {
     });
   };
 
+  const sincronizarPendientes = async () => {
+    const guardados =
+      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    if (guardados.length === 0) {
+      alert("No hay registros pendientes por sincronizar.");
+      return;
+    }
+
+    let sincronizados = 0;
+
+    for (const registro of guardados) {
+      try {
+        const { error } = await supabase.from("registros").insert([registro]);
+        if (!error) sincronizados++;
+      } catch (err) {
+        console.warn("Error al sincronizar:", err);
+      }
+    }
+
+    if (sincronizados > 0) {
+      localStorage.removeItem("capturasPendientes");
+      setPendientes([]);
+      alert(✅ Se sincronizaron ${sincronizados} registros con Supabase.);
+    } else {
+      alert("⚠️ No se pudo sincronizar. Verifica la conexión.");
+    }
+  };
+
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
+
+      {pendientes.length > 0 && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-2 mb-4">
+          ⚠️ Hay {pendientes.length} registro(s) pendientes por sincronizar.
+          <button
+            onClick={sincronizarPendientes}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 ml-3 rounded"
+          >
+            🔁 Sincronizar ahora
+          </button>
+        </div>
+      )}
+
+      {/* Campos principales */}
+      <label className="block font-semibold">Fecha</label>
+      <input
+        type="date"
+        name="fecha"
+        value={form.fecha}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      <label className="block font-semibold">Código de Operador</label>
+      <input
+        type="text"
+        name="codigo"
+        value={form.codigo}
+        onChange={handleCodigo}
+        className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      <label className="block font-semibold">Nombre</label>
+      <input
+        type="text"
+        value={form.nombre}
+        disabled
+        className="border p-2 w-full mb-2 bg-gray-100 rounded-none"
+      />
+
+      <label className="block font-semibold">Máquina</label>
+      <select
+        name="maquina"
+        value={form.maquina}
+        onChange={(e) =>
+          setForm({ ...form, maquina: e.target.value, proceso: "" })
+        }
+        className="border p-2 w-full mb-2 rounded-none"
+      >
+        <option value="">Seleccione máquina...</option>
+        {[...new Set(catalogo.map((m) => m.maquina))].map((maq, i) => (
+          <option key={i} value={maq}>
+            {maq}
+          </option>
+        ))}
+      </select>
+
+      <label className="block font-semibold">Proceso / Pieza</label>
+      <select
+        name="proceso"
+        value={form.proceso}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+        disabled={!form.maquina}
+      >
+        <option value="">Seleccione proceso...</option>
+        {catalogo
+          .filter((m) => m.maquina === form.maquina)
+          .map((m, i) => (
+            <option key={i} value={m.proceso}>
+              {m.proceso}
+            </option>
+          ))}
+      </select>
+
+      {/* Horarios */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between sm:gap-6 mb-3">
+        <div className="flex-1 w-full sm:mr-2">
+          <label className="block font-semibold mb-1">Hora Inicio</label>
+          <input
+            type="time"
+            name="inicio"
+            value={form.inicio}
+            onChange={handleChange}
+            className="border p-2 w-full rounded-none"
+          />
+        </div>
+        <div className="flex-1 w-full sm:ml-2 mt-2 sm:mt-0">
+          <label className="block font-semibold mb-1">Hora Fin</label>
+          <input
+            type="time"
+            name="fin"
+            value={form.fin}
+            onChange={handleChange}
+            className="border p-2 w-full rounded-none"
+          />
+        </div>
+      </div>
+
+      <label className="block font-semibold">Comentario sobre horario</label>
+      <textarea
+        name="comentario_hora"
+        value={form.comentario_hora}
+        onChange={handleChange}
+        className="border p-2 w-full mb-3 rounded-none resize-none"
+      />
+
+      {/* Producción */}
+      <label className="block font-semibold">Carretas Programadas</label>
+      <input
+        type="number"
+        name="carretas"
+        value={form.carretas}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      <label className="block font-semibold">Piezas Totales</label>
+      <input
+        type="number"
+        name="piezastotales"
+        value={form.piezastotales}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      <label className="block font-semibold">Piezas Buenas</label>
+      <input
+        type="number"
+        name="piezasbuenas"
+        value={form.piezasbuenas}
+        onChange={handleChange}
+        className="border p-2 w-full mb-2 rounded-none"
+      />
+
+      <label className="block font-semibold">Comentario sobre producción</label>
+      <textarea
+        name="comentario_calidad"
+        value={form.comentario_calidad}
+        onChange={handleChange}
+        className="border p-2 w-full mb-3 rounded-none resize-none"
+      />
 
       {/* Paros */}
       <div className="mt-4">
         <h3 className="font-semibold mb-2">Paros</h3>
 
         {form.paros.map((p, i) => (
-          <div key={i} className="border p-3 mb-3 rounded">
-            <label className="font-semibold">Hecho (Paro)</label>
-            <select
-              value={p.hecho}
-              onChange={(e) => {
-                const hecho = e.target.value;
-                const data = catalogoParos[form.maquina]?.find(
-                  (x) => x.paro === hecho
-                );
-                editarParo(i, "hecho", hecho);
-                editarParo(i, "clasificacion", data?.causa || "");
-              }}
-              className="border p-2 w-full mb-2"
-              disabled={!form.maquina}
-            >
-              <option value="">Seleccione paro...</option>
-              {(catalogoParos[form.maquina] || []).map((p, idx) => (
-                <option key={idx} value={p.paro}>
-                  {p.paro}
-                </option>
-              ))}
-            </select>
+          <div key={i} className="border p-2 mb-2 rounded">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select
+                value={p.tipo}
+                onChange={(e) => editarParo(i, "tipo", e.target.value)}
+                className="border p-2 flex-1 rounded-none"
+              >
+                <option value="">Seleccione...</option>
+                <option value="Mecánico">Mecánico</option>
+                <option value="Eléctrico">Eléctrico</option>
+                <option value="Planeado">Planeado</option>
+                <option value="Otro">Otro</option>
+              </select>
 
-            <label className="font-semibold">Causa</label>
-            <input
-              type="text"
-              value={p.causa}
-              onChange={(e) => editarParo(i, "causa", e.target.value)}
-              className="border p-2 w-full mb-2"
-            />
+              <input
+                type="number"
+                placeholder="Minutos"
+                value={p.minutos}
+                onChange={(e) => editarParo(i, "minutos", e.target.value)}
+                className="border p-2 w-full sm:w-24 rounded-none"
+              />
 
-            <label className="font-semibold">Acción</label>
-            <input
-              type="text"
-              value={p.accion}
-              onChange={(e) => editarParo(i, "accion", e.target.value)}
-              className="border p-2 w-full mb-2"
-            />
-
-            <label className="font-semibold">Tiempo (min)</label>
-            <input
-              type="number"
-              value={p.minutos}
-              onChange={(e) => editarParo(i, "minutos", e.target.value)}
-              className="border p-2 w-32"
-            />
-
-            {p.clasificacion && (
-              <div className="text-sm text-gray-600 mt-1">
-                Clasificación: <strong>{p.clasificacion}</strong>
-              </div>
-            )}
+              <input
+                type="text"
+                placeholder="Descripción"
+                value={p.descripcion}
+                onChange={(e) => editarParo(i, "descripcion", e.target.value)}
+                className="border p-2 flex-1 rounded-none"
+              />
+            </div>
 
             <button
               onClick={() => eliminarParo(i)}
-              className="bg-red-600 text-white px-3 py-1 mt-2"
+              className="bg-red-600 text-white px-3 py-1 rounded-none mt-2 w-full sm:w-auto"
             >
               Eliminar
             </button>
@@ -218,7 +355,7 @@ export default function Captura() {
 
         <button
           onClick={agregarParo}
-          className="bg-blue-600 text-white px-4 py-2"
+          className="bg-blue-600 text-white px-4 py-2 rounded-none"
         >
           + Agregar paro
         </button>
@@ -226,7 +363,7 @@ export default function Captura() {
 
       <button
         onClick={guardar}
-        className="bg-green-600 text-white px-4 py-2 mt-4"
+        className="bg-green-600 text-white px-4 py-2 rounded-none mt-4"
       >
         Guardar Registro
       </button>
