@@ -21,13 +21,30 @@ export default function Captura() {
     paros: [],
   });
 
-  const handleChange = (e) =>
+  const [pendientes, setPendientes] = useState([]);
+
+  useEffect(() => {
+    const guardados =
+      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    setPendientes(guardados);
+  }, []);
+
+  /* =======================
+     HANDLERS GENERALES
+  ======================= */
+
+  const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleCodigo = (e) => {
     const codigo = e.target.value;
     const op = operadores.find((o) => o.codigo === codigo);
-    setForm({ ...form, codigo, nombre: op ? op.nombre : "" });
+    setForm({
+      ...form,
+      codigo,
+      nombre: op ? op.nombre : "",
+    });
   };
 
   /* =======================
@@ -40,8 +57,8 @@ export default function Captura() {
       paros: [
         ...form.paros,
         {
-          tipo: "",
-          area: "",
+          tipo: "",            // Planeado | No Planeado | Anomalía
+          disciplina: "",      // Mecánica | Eléctrica
           hecho: "",
           causa: "",
           accion: "",
@@ -52,13 +69,28 @@ export default function Captura() {
   };
 
   const editarParo = (i, campo, valor) => {
-    const nuevos = [...form.paros];
-    nuevos[i][campo] = valor;
-    setForm({ ...form, paros: nuevos });
+    const copia = [...form.paros];
+    copia[i][campo] = valor;
+
+    // Si cambia el tipo, limpiar dependientes
+    if (campo === "tipo") {
+      copia[i].disciplina = "";
+      copia[i].hecho = "";
+    }
+
+    // Si cambia disciplina, limpiar hecho
+    if (campo === "disciplina") {
+      copia[i].hecho = "";
+    }
+
+    setForm({ ...form, paros: copia });
   };
 
   const eliminarParo = (i) => {
-    setForm({ ...form, paros: form.paros.filter((_, idx) => idx !== i) });
+    setForm({
+      ...form,
+      paros: form.paros.filter((_, idx) => idx !== i),
+    });
   };
 
   /* =======================
@@ -66,9 +98,34 @@ export default function Captura() {
   ======================= */
 
   const guardar = async () => {
-    if (!form.maquina || !form.proceso) {
-      alert("⚠️ Selecciona máquina y proceso");
+    if (
+      !form.fecha ||
+      !form.codigo ||
+      !form.nombre ||
+      !form.maquina ||
+      !form.proceso ||
+      !form.inicio ||
+      !form.fin ||
+      !form.carretas ||
+      !form.piezastotales ||
+      !form.piezasbuenas
+    ) {
+      alert("⚠️ Completa todos los campos obligatorios.");
       return;
+    }
+
+    for (const p of form.paros) {
+      if (!p.tipo || !p.minutos) {
+        alert("⚠️ Todos los paros deben tener tipo y minutos.");
+        return;
+      }
+
+      if (p.tipo !== "Planeado") {
+        if (!p.disciplina || !p.hecho || !p.causa || !p.accion) {
+          alert("⚠️ Paros no planeados y anomalías requieren HCA completo.");
+          return;
+        }
+      }
     }
 
     const registro = {
@@ -78,7 +135,7 @@ export default function Captura() {
       piezasbuenas: Number(form.piezasbuenas),
       paros: form.paros.map((p) => ({
         tipo: p.tipo,
-        area: p.tipo === "No Planeado" || p.tipo === "Anomalía" ? p.area : null,
+        disciplina: p.disciplina,
         hecho: p.hecho,
         causa: p.causa,
         accion: p.accion,
@@ -86,24 +143,57 @@ export default function Captura() {
       })),
     };
 
-    const { error } = await supabase.from("registros").insert([registro]);
-    if (error) alert(error.message);
-    else alert("✅ Registro guardado");
+    try {
+      const { error } = await supabase.from("registros").insert([registro]);
+      if (error) throw error;
+      alert("✅ Registro guardado en Supabase");
+    } catch {
+      const pendientesActuales =
+        JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+      pendientesActuales.push(registro);
+      localStorage.setItem(
+        "capturasPendientes",
+        JSON.stringify(pendientesActuales)
+      );
+      setPendientes(pendientesActuales);
+      alert("📦 Guardado localmente (sin conexión)");
+    }
+
+    setForm({
+      fecha: new Date().toISOString().split("T")[0],
+      codigo: "",
+      nombre: "",
+      maquina: "",
+      proceso: "",
+      inicio: "",
+      fin: "",
+      carretas: "",
+      piezastotales: "",
+      piezasbuenas: "",
+      comentario_hora: "",
+      comentario_calidad: "",
+      paros: [],
+    });
   };
 
   /* =======================
-     UI
+     RENDER
   ======================= */
 
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
 
-      {/* OPERADOR */}
-      <input placeholder="Código" value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
+      <label>Fecha</label>
+      <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <label>Código Operador</label>
+      <input value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
+
+      <label>Nombre</label>
       <input value={form.nombre} disabled className="border p-2 w-full mb-2 bg-gray-100" />
 
-      {/* MAQUINA */}
+      <label>Máquina</label>
       <select
         value={form.maquina}
         onChange={(e) =>
@@ -111,92 +201,76 @@ export default function Captura() {
         }
         className="border p-2 w-full mb-2"
       >
-        <option value="">Seleccione máquina</option>
-        {[...new Set(catalogo.map((m) => m.maquina))].map((m) => (
-          <option key={m}>{m}</option>
+        <option value="">Seleccione máquina...</option>
+        {[...new Set(catalogo.map((m) => m.maquina))].map((m, i) => (
+          <option key={i} value={m}>{m}</option>
         ))}
       </select>
 
-      {/* PROCESO */}
+      <label>Proceso</label>
       <select
-        value={form.proceso}
         name="proceso"
+        value={form.proceso}
         onChange={handleChange}
-        className="border p-2 w-full mb-4"
+        className="border p-2 w-full mb-2"
+        disabled={!form.maquina}
       >
-        <option value="">Seleccione proceso</option>
-        {catalogo
-          .filter((m) => m.maquina === form.maquina)
-          .map((m, i) => (
-            <option key={i}>{m.proceso}</option>
-          ))}
+        <option value="">Seleccione proceso...</option>
+        {catalogo.filter((m) => m.maquina === form.maquina).map((m, i) => (
+          <option key={i} value={m.proceso}>{m.proceso}</option>
+        ))}
       </select>
 
-      {/* PAROS */}
+      <div className="flex gap-2 mb-2">
+        <input type="time" name="inicio" value={form.inicio} onChange={handleChange} className="border p-2 w-full" />
+        <input type="time" name="fin" value={form.fin} onChange={handleChange} className="border p-2 w-full" />
+      </div>
+
+      <textarea name="comentario_hora" value={form.comentario_hora} onChange={handleChange} className="border p-2 w-full mb-2" placeholder="Comentario horario" />
+
+      <input type="number" name="carretas" placeholder="Carretas" value={form.carretas} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="number" name="piezastotales" placeholder="Piezas Totales" value={form.piezastotales} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="number" name="piezasbuenas" placeholder="Piezas Buenas" value={form.piezasbuenas} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <textarea name="comentario_calidad" value={form.comentario_calidad} onChange={handleChange} className="border p-2 w-full mb-4" placeholder="Comentario producción" />
+
       <h3 className="font-bold mb-2">Paros</h3>
 
       {form.paros.map((p, i) => (
         <div key={i} className="border p-3 mb-3">
-          <select
-            value={p.tipo}
-            onChange={(e) => editarParo(i, "tipo", e.target.value)}
-            className="border p-2 w-full mb-2"
-          >
+          <select value={p.tipo} onChange={(e) => editarParo(i, "tipo", e.target.value)} className="border p-2 w-full mb-2">
             <option value="">Tipo de paro</option>
-            <option>Planeado</option>
-            <option>No Planeado</option>
-            <option>Anomalía</option>
+            <option value="Planeado">Planeado</option>
+            <option value="No Planeado">No Planeado</option>
+            <option value="Anomalía">Anomalía</option>
           </select>
 
-          {(p.tipo === "No Planeado" || p.tipo === "Anomalía") && (
+          {p.tipo !== "Planeado" && (
             <>
-              <select
-                value={p.area}
-                onChange={(e) => editarParo(i, "area", e.target.value)}
-                className="border p-2 w-full mb-2"
-              >
-                <option value="">Área</option>
-                <option>Mecánica</option>
-                <option>Eléctrica</option>
+              <select value={p.disciplina} onChange={(e) => editarParo(i, "disciplina", e.target.value)} className="border p-2 w-full mb-2">
+                <option value="">Disciplina</option>
+                <option value="Mecánica">Mecánica</option>
+                <option value="Eléctrica">Eléctrica</option>
               </select>
 
-              <select
-                value={p.hecho}
-                onChange={(e) => editarParo(i, "hecho", e.target.value)}
-                className="border p-2 w-full mb-2"
-              >
-                <option value="">Hecho</option>
-                {(catalogoParos[form.maquina] || []).map((x, idx) => (
-                  <option key={idx}>{x.paro}</option>
-                ))}
+              <select value={p.hecho} onChange={(e) => editarParo(i, "hecho", e.target.value)} className="border p-2 w-full mb-2">
+                <option value="">Seleccione paro...</option>
+                {(catalogoParos[form.maquina] || [])
+                  .filter(x => x.causa === p.disciplina)
+                  .map((x, idx) => (
+                    <option key={idx} value={x.paro}>{x.paro}</option>
+                  ))}
               </select>
 
-              <input
-                placeholder="Causa"
-                value={p.causa}
-                onChange={(e) => editarParo(i, "causa", e.target.value)}
-                className="border p-2 w-full mb-2"
-              />
-
-              <input
-                placeholder="Acción"
-                value={p.accion}
-                onChange={(e) => editarParo(i, "accion", e.target.value)}
-                className="border p-2 w-full mb-2"
-              />
+              <input placeholder="Causa" value={p.causa} onChange={(e) => editarParo(i, "causa", e.target.value)} className="border p-2 w-full mb-2" />
+              <input placeholder="Acción" value={p.accion} onChange={(e) => editarParo(i, "accion", e.target.value)} className="border p-2 w-full mb-2" />
             </>
           )}
 
-          <input
-            type="number"
-            placeholder="Minutos"
-            value={p.minutos}
-            onChange={(e) => editarParo(i, "minutos", e.target.value)}
-            className="border p-2 w-full mb-2"
-          />
+          <input type="number" placeholder="Minutos" value={p.minutos} onChange={(e) => editarParo(i, "minutos", e.target.value)} className="border p-2 w-full mb-2" />
 
-          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white w-full py-1">
-            Eliminar
+          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white px-3 py-1 w-full">
+            Eliminar paro
           </button>
         </div>
       ))}
@@ -205,7 +279,7 @@ export default function Captura() {
         + Agregar paro
       </button>
 
-      <button onClick={guardar} className="bg-green-600 text-white w-full py-2">
+      <button onClick={guardar} className="bg-green-600 text-white px-4 py-2 w-full">
         Guardar Registro
       </button>
     </div>
