@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { catalogo } from "../data/catalogo";
-import { operadores } from "../data/operadores";
 import { catalogoParos } from "../data/catalogoParos";
+import { operadores } from "../data/operadores";
 import { supabase } from "../supabaseClient";
 
 export default function Captura() {
@@ -43,16 +43,12 @@ export default function Captura() {
     });
   };
 
-  /* ======================
-     PAROS HCA
-  ====================== */
-
   const agregarParo = () => {
     setForm({
       ...form,
       paros: [
         ...form.paros,
-        { hecho: "", causa: "", accion: "", minutos: "" },
+        { paro: "", causa_operador: "", accion: "", minutos: "" },
       ],
     });
   };
@@ -84,13 +80,13 @@ export default function Captura() {
       !form.piezastotales ||
       !form.piezasbuenas
     ) {
-      alert("⚠️ Debes completar todos los campos antes de guardar.");
+      alert("⚠️ Completa todos los campos principales.");
       return;
     }
 
-    for (let paro of form.paros) {
-      if (!paro.hecho || !paro.causa || !paro.accion || !paro.minutos) {
-        alert("⚠️ Completa Hecho, Causa, Acción y Tiempo en cada paro.");
+    for (let p of form.paros) {
+      if (!p.paro || !p.causa_operador || !p.accion || !p.minutos) {
+        alert("⚠️ Completa todos los campos de cada paro.");
         return;
       }
     }
@@ -106,7 +102,12 @@ export default function Captura() {
       carretas: Number(form.carretas),
       piezastotales: Number(form.piezastotales),
       piezasbuenas: Number(form.piezasbuenas),
-      paros: form.paros,
+      paros: form.paros.map((p) => ({
+        paro: p.paro,
+        causa_operador: p.causa_operador,
+        accion: p.accion,
+        minutos: Number(p.minutos),
+      })),
       comentario_hora: form.comentario_hora,
       comentario_calidad: form.comentario_calidad,
     };
@@ -124,7 +125,7 @@ export default function Captura() {
         JSON.stringify(pendientesActuales)
       );
       setPendientes(pendientesActuales);
-      alert("📦 Registro guardado localmente (sin conexión)");
+      alert("📦 Guardado localmente (sin conexión)");
     }
 
     setForm({
@@ -148,92 +149,73 @@ export default function Captura() {
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
 
-      {/* === DATOS GENERALES === */}
-      <label>Fecha</label>
+      {pendientes.length > 0 && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 p-2 mb-4">
+          ⚠️ Hay {pendientes.length} registros pendientes
+        </div>
+      )}
+
+      {/* DATOS GENERALES */}
+      <label className="font-semibold">Fecha</label>
       <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="border p-2 w-full mb-2" />
 
-      <label>Código Operador</label>
+      <label className="font-semibold">Código Operador</label>
       <input type="text" value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
 
-      <label>Nombre</label>
+      <label className="font-semibold">Nombre</label>
       <input type="text" value={form.nombre} disabled className="border p-2 w-full mb-2 bg-gray-100" />
 
-      <label>Máquina</label>
+      <label className="font-semibold">Máquina</label>
       <select
         value={form.maquina}
         onChange={(e) => setForm({ ...form, maquina: e.target.value, proceso: "" })}
         className="border p-2 w-full mb-2"
       >
-        <option value="">Seleccione máquina...</option>
+        <option value="">Seleccione...</option>
         {[...new Set(catalogo.map((m) => m.maquina))].map((m, i) => (
-          <option key={i} value={m}>{m}</option>
+          <option key={i}>{m}</option>
         ))}
       </select>
 
-      <label>Proceso</label>
+      <label className="font-semibold">Proceso</label>
       <select
         value={form.proceso}
         onChange={handleChange}
         name="proceso"
-        disabled={!form.maquina}
         className="border p-2 w-full mb-2"
+        disabled={!form.maquina}
       >
-        <option value="">Seleccione proceso...</option>
-        {catalogo.filter(m => m.maquina === form.maquina).map((m, i) => (
-          <option key={i} value={m.proceso}>{m.proceso}</option>
+        <option value="">Seleccione...</option>
+        {catalogo.filter((m) => m.maquina === form.maquina).map((m, i) => (
+          <option key={i}>{m.proceso}</option>
         ))}
       </select>
 
-      <label>Hora inicio</label>
-      <input type="time" name="inicio" value={form.inicio} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Hora fin</label>
-      <input type="time" name="fin" value={form.fin} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Comentario horario</label>
-      <textarea name="comentario_hora" value={form.comentario_hora} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Carretas</label>
-      <input type="number" name="carretas" value={form.carretas} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Piezas Totales</label>
-      <input type="number" name="piezastotales" value={form.piezastotales} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Piezas Buenas</label>
-      <input type="number" name="piezasbuenas" value={form.piezasbuenas} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Comentario producción</label>
-      <textarea name="comentario_calidad" value={form.comentario_calidad} onChange={handleChange} className="border p-2 w-full mb-4" />
-
-      {/* === PAROS HCA === */}
-      <h3 className="font-semibold mb-2">Paros (HCA)</h3>
+      {/* PAROS */}
+      <h3 className="font-bold mt-4 mb-2">Paros (HCA)</h3>
 
       {form.paros.map((p, i) => (
         <div key={i} className="border p-3 mb-3">
           <select
-            value={p.hecho}
-            onChange={(e) => editarParo(i, "hecho", e.target.value)}
+            value={p.paro}
+            onChange={(e) => editarParo(i, "paro", e.target.value)}
             className="border p-2 w-full mb-2"
           >
             <option value="">Seleccione paro...</option>
-            {(catalogoParos[form.maquina] || []).map((paro, idx) => (
-              <option key={idx} value={paro.paro}>
-                {paro.paro} ({paro.causa})
-              </option>
+            {(catalogoParos[form.maquina] || []).map((x, idx) => (
+              <option key={idx} value={x.paro}>{x.paro}</option>
             ))}
           </select>
 
           <input
-            type="text"
-            placeholder="Causa (¿por qué ocurrió?)"
-            value={p.causa}
-            onChange={(e) => editarParo(i, "causa", e.target.value)}
+            placeholder="Causa (¿por qué pasó?)"
+            value={p.causa_operador}
+            onChange={(e) => editarParo(i, "causa_operador", e.target.value)}
             className="border p-2 w-full mb-2"
           />
 
           <input
-            type="text"
-            placeholder="Acción tomada"
+            placeholder="Acción realizada"
             value={p.accion}
             onChange={(e) => editarParo(i, "accion", e.target.value)}
             className="border p-2 w-full mb-2"
@@ -241,13 +223,13 @@ export default function Captura() {
 
           <input
             type="number"
-            placeholder="Tiempo (min)"
+            placeholder="Minutos"
             value={p.minutos}
             onChange={(e) => editarParo(i, "minutos", e.target.value)}
-            className="border p-2 w-32 mb-2"
+            className="border p-2 w-full mb-2"
           />
 
-          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white px-3 py-1">
+          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white px-3 py-1 w-full">
             Eliminar paro
           </button>
         </div>
@@ -257,8 +239,8 @@ export default function Captura() {
         + Agregar paro
       </button>
 
-      <button onClick={guardar} className="ml-3 bg-green-600 text-white px-4 py-2">
-        Guardar Registro
+      <button onClick={guardar} className="bg-green-600 text-white px-4 py-2 mt-4 w-full">
+        Guardar registro
       </button>
     </div>
   );
