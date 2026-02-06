@@ -21,7 +21,7 @@ export const catalogoParos = {
     { paro: "Falla en molde", causa: "Mecánica" }
   ],
 
-  "Perforado": [
+  "Perforadora de tolva": [
     { paro: "Pérdida de presión", causa: "Mecánica" },
     { paro: "Cambio de punzones", causa: "Operacional" }
   ],
@@ -52,13 +52,110 @@ export const catalogoParos = {
     { paro: "Falla en pedal de perforadora", causa: "Mecánica" },
     { paro: "Falla en botonera de perforadora", causa: "Eléctrica" },
     { paro: "Falla en palanca de perforadora", causa: "Mecánica" },
-    { paro: "Falla en sujetadores de molde", causa: "Mecánica" },
+    { paro: "Falla en sujetadores de molde de perforadora", causa: "Mecánica" },
     { paro: "Falla en tablero eléctrico local", causa: "Eléctrica" }
+  ],
+
+  "Troqueladora 1": [
+    { paro: "Punzones en mal estado", causa: "Mecánica" },
+    { paro: "Falla en embrague", causa: "Mecánica" },
+    { paro: "Reventadura de fajas de volante", causa: "Mecánica" },
+    { paro: "Falla en freno", causa: "Mecánica" },
+    { paro: "Falla en polea de transmisión", causa: "Mecánica" },
+    { paro: "Máquina no acciona", causa: "Mecánica" },
+    { paro: "Máquina no acciona", causa: "Eléctrica" },
+    { paro: "No se activa hongo de emergencia", causa: "Eléctrica" },
+    { paro: "Desajuste en punzones", causa: "Mecánica" },
+    { paro: "Tablero eléctrico local", causa: "Eléctrica" },
+    { paro: "Electroválvulas", causa: "Mecánica" },
+    { paro: "Mangueras neumáticas", causa: "Mecánica" },
+    { paro: "Unidades de mantenimiento", causa: "Mecánica" }
+  ],
+
+  "Troqueladora 2": [
+    { paro: "Molde en mal estado", causa: "Mecánica" },
+    { paro: "Falla en cilindro de expulsión de hembra", causa: "Mecánica" },
+    { paro: "Falla en embrague", causa: "Mecánica" },
+    { paro: "Falla en volante de transmisión", causa: "Mecánica" },
+    { paro: "Falla en polea de transmisión", causa: "Mecánica" },
+    { paro: "Falla en botonera de accionamiento", causa: "Eléctrica" },
+    { paro: "Falla en hongo de emergencia", causa: "Eléctrica" },
+    { paro: "Desajuste de molde", causa: "Mecánica" },
+    { paro: "Tablero eléctrico local", causa: "Eléctrica" },
+    { paro: "Electroválvulas", causa: "Mecánica" },
+    { paro: "Mangueras neumáticas", causa: "Mecánica" },
+    { paro: "Unidades de mantenimiento", causa: "Mecánica" }
+  ],
+
+  "Troqueladora 3": [
+    { paro: "Punzones en mal estado", causa: "Mecánica" },
+    { paro: "Falla en molde de guía de hembra", causa: "Mecánica" },
+    { paro: "Falla en sistema de embrague", causa: "Mecánica" },
+    { paro: "Falla en cuña", causa: "Mecánica" },
+    { paro: "Falla en volante de transmisión", causa: "Mecánica" },
+    { paro: "Falla en polea de transmisión", causa: "Mecánica" },
+    { paro: "Falla en botonera de accionamiento", causa: "Eléctrica" },
+    { paro: "Falla en hongo de emergencia", causa: "Eléctrica" },
+    { paro: "Desajuste de molde", causa: "Mecánica" },
+    { paro: "Falla en tablero eléctrico local", causa: "Eléctrica" },
+    { paro: "Falla en electroválvulas", causa: "Mecánica" },
+    { paro: "Falla en mangueras neumáticas", causa: "Mecánica" },
+    { paro: "Falla en unidades de mantenimiento", causa: "Mecánica" }
+  ],
+
+  "Troqueladora 5": [
+    { paro: "Molde en mal estado", causa: "Mecánica" },
+    { paro: "Se quiebran resortes", causa: "Mecánica" },
+    { paro: "Falla en sistema de embrague", causa: "Mecánica" },
+    { paro: "Falla en cuña", causa: "Mecánica" },
+    { paro: "Falla en volante de transmisión", causa: "Mecánica" },
+    { paro: "Falla en freno", causa: "Mecánica" },
+    { paro: "Falla en polea de transmisión", causa: "Mecánica" },
+    { paro: "Falla en botonera de accionamiento", causa: "Mecánica" },
+    { paro: "Falla en hongo de emergencia", causa: "Mecánica" },
+    { paro: "Desajuste de molde", causa: "Mecánica" },
+    { paro: "Falla en tablero eléctrico local", causa: "Eléctrica" },
+    { paro: "Falla en electroválvulas", causa: "Mecánica" },
+    { paro: "Falla en mangueras neumáticas", causa: "Mecánica" },
+    { paro: "Falla en unidades de mantenimiento", causa: "Mecánica" }
+  ],
+
+  "Troqueladora 6": [
+    { paro: "Molde de formado en mal estado", causa: "Mecánica" },
+    { paro: "Se quiebran resortes", causa: "Mecánica" },
+    { paro: "Falla en sistema de embrague", causa: "Mecánica" },
+    { paro: "Falla en cuña", causa: "Mecánica" },
+    { paro: "Falla en volante de transmisión", causa: "Mecánica" },
+    { paro: "Falla en freno", causa: "Mecánica" },
+    { paro: "Falla en polea de transmisión", causa: "Mecánica" },
+    { paro: "Falla en botonera de accionamiento", causa: "Eléctrica" },
+    { paro: "Falla en hongo de emergencia", causa: "Eléctrica" },
+    { paro: "Desajuste de molde", causa: "Mecánica" },
+    { paro: "Falla en tablero eléctrico local", causa: "Eléctrica" }
+  ],
+
+  "Troqueladora 7": [
+    { paro: "Molde de formado canal en mal estado", causa: "Mecánica" },
+    { paro: "Molde de formado en V en mal estado", causa: "Mecánica" },
+    { paro: "Punzón en mal estado", causa: "Mecánica" },
+    { paro: "Se quiebran resortes", causa: "Mecánica" },
+    { paro: "Falla en sistema de embrague", causa: "Mecánica" },
+    { paro: "Falla en cuña", causa: "Mecánica" },
+    { paro: "Falla en volante de transmisión", causa: "Mecánica" },
+    { paro: "Falla en freno", causa: "Mecánica" },
+    { paro: "Falla en polea de transmisión", causa: "Mecánica" },
+    { paro: "Falla en botonera de accionamiento", causa: "Eléctrica" },
+    { paro: "Falla en hongo de emergencia", causa: "Eléctrica" },
+    { paro: "Desajuste de molde", causa: "Mecánica" },
+    { paro: "Falla en tablero eléctrico local", causa: "Eléctrica" },
+    { paro: "Falla en electroválvulas", causa: "Mecánica" },
+    { paro: "Falla en mangueras neumáticas", causa: "Mecánica" },
+    { paro: "Falla en unidades de mantenimiento", causa: "Mecánica" }
   ],
 
   "Serigrafía": [
     { paro: "Problema con manta de serigrafía", causa: "Operacional" },
-    { paro: "Problema con sujetador de marco", causa: "Mecánica" },
+    { paro: "Problema con sujetador de marco de serigrafía", causa: "Mecánica" },
     { paro: "Falla de mesa giratoria", causa: "Mecánica" },
     { paro: "Falla de molde sujetador de tolva", causa: "Mecánica" }
   ],
