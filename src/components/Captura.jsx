@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { catalogo } from "../data/catalogo";
-import { catalogoParos } from "../data/catalogoParos";
 import { operadores } from "../data/operadores";
+import { catalogoParos } from "../data/catalogoParos";
 import { supabase } from "../supabaseClient";
 
 export default function Captura() {
@@ -16,9 +16,9 @@ export default function Captura() {
     carretas: "",
     piezastotales: "",
     piezasbuenas: "",
-    paros: [],
     comentario_hora: "",
     comentario_calidad: "",
+    paros: [],
   });
 
   const [pendientes, setPendientes] = useState([]);
@@ -43,7 +43,9 @@ export default function Captura() {
     });
   };
 
-  /* ===================== PAROS HCA ===================== */
+  /* =======================
+     PAROS (HCA)
+  ======================= */
 
   const agregarParo = () => {
     setForm({
@@ -56,10 +58,9 @@ export default function Captura() {
   };
 
   const editarParo = (index, field, value) => {
-    const nuevosParos = form.paros.map((p, i) =>
-      i === index ? { ...p, [field]: value } : p
-    );
-    setForm({ ...form, paros: nuevosParos });
+    const nuevos = [...form.paros];
+    nuevos[index][field] = value;
+    setForm({ ...form, paros: nuevos });
   };
 
   const eliminarParo = (index) => {
@@ -69,7 +70,9 @@ export default function Captura() {
     });
   };
 
-  /* ===================== GUARDAR ===================== */
+  /* =======================
+     GUARDAR
+  ======================= */
 
   const guardar = async () => {
     if (
@@ -84,13 +87,13 @@ export default function Captura() {
       !form.piezastotales ||
       !form.piezasbuenas
     ) {
-      alert("⚠️ Debes completar todos los campos obligatorios.");
+      alert("⚠️ Completa todos los campos obligatorios.");
       return;
     }
 
-    for (let p of form.paros) {
+    for (const p of form.paros) {
       if (!p.hecho || !p.causa || !p.accion || !p.minutos) {
-        alert("⚠️ Completa todos los campos de cada paro.");
+        alert("⚠️ Completa todos los campos de los paros.");
         return;
       }
     }
@@ -112,7 +115,7 @@ export default function Captura() {
       const { error } = await supabase.from("registros").insert([registro]);
       if (error) throw error;
       alert("✅ Registro guardado en Supabase");
-    } catch {
+    } catch (err) {
       const pendientesActuales =
         JSON.parse(localStorage.getItem("capturasPendientes")) || [];
       pendientesActuales.push(registro);
@@ -121,11 +124,11 @@ export default function Captura() {
         JSON.stringify(pendientesActuales)
       );
       setPendientes(pendientesActuales);
-      alert("📦 Guardado localmente (sin conexión)");
+      alert("📦 Registro guardado localmente (sin conexión)");
     }
 
     setForm({
-      ...form,
+      fecha: new Date().toISOString().split("T")[0],
       codigo: "",
       nombre: "",
       maquina: "",
@@ -135,20 +138,92 @@ export default function Captura() {
       carretas: "",
       piezastotales: "",
       piezasbuenas: "",
-      paros: [],
       comentario_hora: "",
       comentario_calidad: "",
+      paros: [],
     });
   };
-
-  /* ===================== UI ===================== */
 
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
 
-      {/* PAROS */}
-      <h3 className="font-semibold mt-4 mb-2">Paros (HCA)</h3>
+      {/* Fecha */}
+      <label>Fecha</label>
+      <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      {/* Operador */}
+      <label>Código Operador</label>
+      <input value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
+
+      <label>Nombre</label>
+      <input value={form.nombre} disabled className="border p-2 w-full mb-2 bg-gray-100" />
+
+      {/* Máquina */}
+      <label>Máquina</label>
+      <select
+        value={form.maquina}
+        onChange={(e) =>
+          setForm({ ...form, maquina: e.target.value, proceso: "", paros: [] })
+        }
+        className="border p-2 w-full mb-2"
+      >
+        <option value="">Seleccione máquina...</option>
+        {[...new Set(catalogo.map((m) => m.maquina))].map((m, i) => (
+          <option key={i} value={m}>
+            {m}
+          </option>
+        ))}
+      </select>
+
+      {/* Proceso */}
+      <label>Proceso</label>
+      <select
+        value={form.proceso}
+        onChange={handleChange}
+        name="proceso"
+        className="border p-2 w-full mb-2"
+        disabled={!form.maquina}
+      >
+        <option value="">Seleccione proceso...</option>
+        {catalogo
+          .filter((m) => m.maquina === form.maquina)
+          .map((m, i) => (
+            <option key={i} value={m.proceso}>
+              {m.proceso}
+            </option>
+          ))}
+      </select>
+
+      {/* Horas */}
+      <div className="flex gap-2">
+        <input type="time" name="inicio" value={form.inicio} onChange={handleChange} className="border p-2 w-full" />
+        <input type="time" name="fin" value={form.fin} onChange={handleChange} className="border p-2 w-full" />
+      </div>
+
+      <textarea
+        name="comentario_hora"
+        value={form.comentario_hora}
+        onChange={handleChange}
+        className="border p-2 w-full my-2"
+        placeholder="Comentario de horario"
+      />
+
+      {/* Producción */}
+      <input type="number" name="carretas" placeholder="Carretas" value={form.carretas} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="number" name="piezastotales" placeholder="Piezas Totales" value={form.piezastotales} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="number" name="piezasbuenas" placeholder="Piezas Buenas" value={form.piezasbuenas} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <textarea
+        name="comentario_calidad"
+        value={form.comentario_calidad}
+        onChange={handleChange}
+        className="border p-2 w-full mb-4"
+        placeholder="Comentario de producción"
+      />
+
+      {/* HCA */}
+      <h3 className="font-bold mb-2">Paros (HCA)</h3>
 
       {form.paros.map((p, i) => (
         <div key={i} className="border p-3 mb-3">
@@ -159,12 +234,14 @@ export default function Captura() {
           >
             <option value="">Seleccione paro...</option>
             {(catalogoParos[form.maquina] || []).map((x, idx) => (
-              <option key={idx} value={x.paro}>{x.paro}</option>
+              <option key={idx} value={x.paro}>
+                {x.paro}
+              </option>
             ))}
           </select>
 
           <input
-            placeholder="Causa (¿por qué pasó?)"
+            placeholder="Causa (qué pasó)"
             value={p.causa}
             onChange={(e) => editarParo(i, "causa", e.target.value)}
             className="border p-2 w-full mb-2"
@@ -179,32 +256,23 @@ export default function Captura() {
 
           <input
             type="number"
-            placeholder="Minutos"
+            placeholder="Tiempo (min)"
             value={p.minutos}
             onChange={(e) => editarParo(i, "minutos", e.target.value)}
             className="border p-2 w-full mb-2"
           />
 
-          <button
-            onClick={() => eliminarParo(i)}
-            className="bg-red-600 text-white px-3 py-1 w-full"
-          >
+          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white px-3 py-1 w-full">
             Eliminar paro
           </button>
         </div>
       ))}
 
-      <button
-        onClick={agregarParo}
-        className="bg-blue-600 text-white px-4 py-2"
-      >
+      <button onClick={agregarParo} className="bg-blue-600 text-white px-4 py-2 mb-4">
         + Agregar paro
       </button>
 
-      <button
-        onClick={guardar}
-        className="bg-green-600 text-white px-4 py-2 mt-4 w-full"
-      >
+      <button onClick={guardar} className="bg-green-600 text-white px-4 py-2 w-full">
         Guardar Registro
       </button>
     </div>
