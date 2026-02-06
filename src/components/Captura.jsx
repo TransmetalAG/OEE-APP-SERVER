@@ -43,9 +43,9 @@ export default function Captura() {
     });
   };
 
-  /* =========================
+  /* ======================
      PAROS HCA
-     ========================= */
+  ====================== */
 
   const agregarParo = () => {
     setForm({
@@ -144,41 +144,21 @@ export default function Captura() {
     });
   };
 
-  const sincronizarPendientes = async () => {
-    const guardados =
-      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
-    if (guardados.length === 0) return;
-
-    for (const registro of guardados) {
-      await supabase.from("registros").insert([registro]);
-    }
-
-    localStorage.removeItem("capturasPendientes");
-    setPendientes([]);
-    alert("✅ Registros sincronizados");
-  };
-
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
 
-      {pendientes.length > 0 && (
-        <div className="bg-yellow-100 p-2 mb-4">
-          ⚠️ Hay registros pendientes
-          <button
-            onClick={sincronizarPendientes}
-            className="ml-3 bg-yellow-600 text-white px-3 py-1"
-          >
-            Sincronizar
-          </button>
-        </div>
-      )}
-
       {/* === DATOS GENERALES === */}
+      <label>Fecha</label>
       <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="border p-2 w-full mb-2" />
-      <input type="text" placeholder="Código operador" value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
+
+      <label>Código Operador</label>
+      <input type="text" value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
+
+      <label>Nombre</label>
       <input type="text" value={form.nombre} disabled className="border p-2 w-full mb-2 bg-gray-100" />
 
+      <label>Máquina</label>
       <select
         value={form.maquina}
         onChange={(e) => setForm({ ...form, maquina: e.target.value, proceso: "" })}
@@ -190,6 +170,7 @@ export default function Captura() {
         ))}
       </select>
 
+      <label>Proceso</label>
       <select
         value={form.proceso}
         onChange={handleChange}
@@ -203,8 +184,29 @@ export default function Captura() {
         ))}
       </select>
 
+      <label>Hora inicio</label>
+      <input type="time" name="inicio" value={form.inicio} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <label>Hora fin</label>
+      <input type="time" name="fin" value={form.fin} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <label>Comentario horario</label>
+      <textarea name="comentario_hora" value={form.comentario_hora} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <label>Carretas</label>
+      <input type="number" name="carretas" value={form.carretas} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <label>Piezas Totales</label>
+      <input type="number" name="piezastotales" value={form.piezastotales} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <label>Piezas Buenas</label>
+      <input type="number" name="piezasbuenas" value={form.piezasbuenas} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <label>Comentario producción</label>
+      <textarea name="comentario_calidad" value={form.comentario_calidad} onChange={handleChange} className="border p-2 w-full mb-4" />
+
       {/* === PAROS HCA === */}
-      <h3 className="font-semibold mt-4 mb-2">Paros (HCA)</h3>
+      <h3 className="font-semibold mb-2">Paros (HCA)</h3>
 
       {form.paros.map((p, i) => (
         <div key={i} className="border p-3 mb-3">
@@ -245,10 +247,7 @@ export default function Captura() {
             className="border p-2 w-32 mb-2"
           />
 
-          <button
-            onClick={() => eliminarParo(i)}
-            className="bg-red-600 text-white px-3 py-1"
-          >
+          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white px-3 py-1">
             Eliminar paro
           </button>
         </div>
