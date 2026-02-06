@@ -63,7 +63,7 @@ export const catalogoParos = {
     { paro: "Falla de molde sujetador de tolva", causa: "Mecánica" }
   ],
 
-  "Pintura Electroestática": [
+  "Pintura Electroestatica": [
     { paro: "Falla en quemador", causa: "Mecánica" },
     { paro: "Motor de ventilador", causa: "Mecánica" },
     { paro: "Arrastre de cadena", causa: "Mecánica" },
