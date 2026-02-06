@@ -21,9 +21,9 @@ export default function Captura() {
     paros: [],
   });
 
-  /* =======================
+  /* ======================
      OPERADOR
-  ======================= */
+  ====================== */
   const handleCodigo = (e) => {
     const codigo = e.target.value;
     const op = operadores.find((o) => o.codigo === codigo);
@@ -34,9 +34,9 @@ export default function Captura() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  /* =======================
+  /* ======================
      PAROS
-  ======================= */
+  ====================== */
   const agregarParo = () => {
     setForm({
       ...form,
@@ -46,7 +46,6 @@ export default function Captura() {
           tipo: "",
           origen: "",
           hecho: "",
-          causa: "",
           accion: "",
           minutos: "",
         },
@@ -57,16 +56,6 @@ export default function Captura() {
   const editarParo = (i, campo, valor) => {
     const copia = [...form.paros];
     copia[i][campo] = valor;
-
-    // Reset cascada
-    if (campo === "tipo") {
-      copia[i].origen = "";
-      copia[i].hecho = "";
-    }
-    if (campo === "origen") {
-      copia[i].hecho = "";
-    }
-
     setForm({ ...form, paros: copia });
   };
 
@@ -77,23 +66,33 @@ export default function Captura() {
     });
   };
 
-  /* =======================
+  /* ======================
      GUARDAR
-  ======================= */
+  ====================== */
   const guardar = async () => {
+    if (
+      !form.fecha ||
+      !form.codigo ||
+      !form.nombre ||
+      !form.maquina ||
+      !form.proceso ||
+      !form.inicio ||
+      !form.fin ||
+      !form.carretas ||
+      !form.piezastotales ||
+      !form.piezasbuenas
+    ) {
+      alert("⚠️ Completa todos los campos de producción.");
+      return;
+    }
+
     for (const p of form.paros) {
-      if (!p.tipo || !p.causa || !p.accion || !p.minutos) {
-        alert("⚠️ Completa todos los campos del paro");
+      if (!p.tipo || !p.minutos || !p.accion) {
+        alert("⚠️ Paros incompletos.");
         return;
       }
-      if (p.tipo !== "Planeado" && !p.origen) {
-        alert("⚠️ Selecciona origen del paro");
-        return;
-      }
-      if (p.tipo !== "Planeado" && !p.hecho) {
-        alert("⚠️ Selecciona el paro");
-        return;
-      }
+      if (p.tipo === "No Planeado" && (!p.origen || !p.hecho)) return;
+      if (p.tipo !== "No Planeado" && !p.hecho) return;
     }
 
     const registro = {
@@ -102,11 +101,7 @@ export default function Captura() {
       piezastotales: Number(form.piezastotales),
       piezasbuenas: Number(form.piezasbuenas),
       paros: form.paros.map((p) => ({
-        tipo: p.tipo,
-        origen: p.origen,
-        hecho: p.hecho,
-        causa: p.causa,
-        accion: p.accion,
+        ...p,
         minutos: Number(p.minutos),
       })),
     };
@@ -115,15 +110,21 @@ export default function Captura() {
     alert("✅ Registro guardado");
   };
 
+  /* ======================
+     UI
+  ====================== */
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
 
+      {/* Fecha */}
       <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="border p-2 w-full mb-2" />
 
+      {/* Operador */}
       <input placeholder="Código" value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
       <input value={form.nombre} disabled className="border p-2 w-full mb-2 bg-gray-100" />
 
+      {/* Máquina */}
       <select value={form.maquina} onChange={(e) => setForm({ ...form, maquina: e.target.value, proceso: "", paros: [] })} className="border p-2 w-full mb-2">
         <option value="">Seleccione máquina</option>
         {[...new Set(catalogo.map((m) => m.maquina))].map((m) => (
@@ -131,54 +132,81 @@ export default function Captura() {
         ))}
       </select>
 
-      <select value={form.proceso} name="proceso" onChange={handleChange} disabled={!form.maquina} className="border p-2 w-full mb-2">
+      {/* Proceso */}
+      <select name="proceso" value={form.proceso} onChange={handleChange} className="border p-2 w-full mb-2">
         <option value="">Seleccione proceso</option>
-        {catalogo.filter((m) => m.maquina === form.maquina).map((m) => (
-          <option key={m.proceso} value={m.proceso}>{m.proceso}</option>
+        {catalogo.filter((m) => m.maquina === form.maquina).map((m, i) => (
+          <option key={i} value={m.proceso}>{m.proceso}</option>
         ))}
       </select>
 
-      <h3 className="font-bold mt-4">Paros</h3>
+      {/* Horas */}
+      <div className="flex gap-2 mb-2">
+        <input type="time" name="inicio" value={form.inicio} onChange={handleChange} className="border p-2 w-full" />
+        <input type="time" name="fin" value={form.fin} onChange={handleChange} className="border p-2 w-full" />
+      </div>
+
+      <textarea name="comentario_hora" value={form.comentario_hora} onChange={handleChange} placeholder="Comentario horario" className="border p-2 w-full mb-2" />
+
+      {/* Producción */}
+      <input type="number" name="carretas" placeholder="Carretas" value={form.carretas} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="number" name="piezastotales" placeholder="Piezas totales" value={form.piezastotales} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="number" name="piezasbuenas" placeholder="Piezas buenas" value={form.piezasbuenas} onChange={handleChange} className="border p-2 w-full mb-2" />
+
+      <textarea name="comentario_calidad" value={form.comentario_calidad} onChange={handleChange} placeholder="Comentario producción" className="border p-2 w-full mb-4" />
+
+      {/* PAROS */}
+      <h3 className="font-bold mb-2">Paros</h3>
 
       {form.paros.map((p, i) => (
-        <div key={i} className="border p-3 my-3">
+        <div key={i} className="border p-3 mb-3">
           <select value={p.tipo} onChange={(e) => editarParo(i, "tipo", e.target.value)} className="border p-2 w-full mb-2">
-            <option value="">Seleccione tipo de paro</option>
-            <option value="Planeado">Planeado</option>
-            <option value="No Planeado">No Planeado</option>
-            <option value="Anomalía">Anomalía</option>
+            <option value="">Tipo de paro</option>
+            <option>Planeado</option>
+            <option>No Planeado</option>
+            <option>Anomalía</option>
           </select>
 
-          {p.tipo !== "Planeado" && (
-            <select value={p.origen} onChange={(e) => editarParo(i, "origen", e.target.value)} className="border p-2 w-full mb-2">
-              <option value="">Seleccione origen</option>
-              <option value="Mecánica">Mecánica</option>
-              <option value="Eléctrica">Eléctrica</option>
-              <option value="Operacional">Operacional</option>
-            </select>
+          {p.tipo === "No Planeado" && (
+            <>
+              <select value={p.origen} onChange={(e) => editarParo(i, "origen", e.target.value)} className="border p-2 w-full mb-2">
+                <option value="">Origen</option>
+                <option>Mecánica</option>
+                <option>Eléctrica</option>
+                <option>Operacional</option>
+              </select>
+
+              <select value={p.hecho} onChange={(e) => editarParo(i, "hecho", e.target.value)} className="border p-2 w-full mb-2">
+                <option value="">Seleccione paro</option>
+                {(catalogoParos[form.maquina] || [])
+                  .filter(x => x.causa === p.origen)
+                  .map((x, idx) => (
+                    <option key={idx} value={x.paro}>{x.paro}</option>
+                  ))}
+              </select>
+            </>
           )}
 
-          {p.tipo !== "Planeado" && (
-            <select value={p.hecho} onChange={(e) => editarParo(i, "hecho", e.target.value)} className="border p-2 w-full mb-2">
-              <option value="">Seleccione paro</option>
-              {(catalogoParos[form.maquina] || [])
-                .filter((x) => x.causa === p.origen)
-                .map((x, idx) => (
-                  <option key={idx} value={x.paro}>{x.paro}</option>
-                ))}
-            </select>
+          {p.tipo !== "No Planeado" && (
+            <input placeholder="Hecho" value={p.hecho} onChange={(e) => editarParo(i, "hecho", e.target.value)} className="border p-2 w-full mb-2" />
           )}
 
-          <input placeholder="Causa" value={p.causa} onChange={(e) => editarParo(i, "causa", e.target.value)} className="border p-2 w-full mb-2" />
           <input placeholder="Acción" value={p.accion} onChange={(e) => editarParo(i, "accion", e.target.value)} className="border p-2 w-full mb-2" />
           <input type="number" placeholder="Minutos" value={p.minutos} onChange={(e) => editarParo(i, "minutos", e.target.value)} className="border p-2 w-full mb-2" />
 
-          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white w-full py-1">Eliminar paro</button>
+          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white px-3 py-1 w-full">
+            Eliminar paro
+          </button>
         </div>
       ))}
 
-      <button onClick={agregarParo} className="bg-blue-600 text-white px-4 py-2 mb-3">+ Agregar paro</button>
-      <button onClick={guardar} className="bg-green-600 text-white w-full py-2">Guardar Registro</button>
+      <button onClick={agregarParo} className="bg-blue-600 text-white px-4 py-2 mb-4">
+        + Agregar paro
+      </button>
+
+      <button onClick={guardar} className="bg-green-600 text-white px-4 py-2 w-full">
+        Guardar Registro
+      </button>
     </div>
   );
 }
