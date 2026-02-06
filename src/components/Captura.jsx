@@ -43,40 +43,33 @@ export default function Captura() {
     });
   };
 
-  /* =======================
-     PAROS (HCA)
-  ======================= */
+  /* =========================
+     PAROS HCA
+     ========================= */
 
   const agregarParo = () => {
     setForm({
       ...form,
       paros: [
         ...form.paros,
-        {
-          hecho: "",
-          causa: "",
-          accion: "",
-          minutos: "",
-          clasificacion: "",
-        },
+        { hecho: "", causa: "", accion: "", minutos: "" },
       ],
     });
   };
 
   const editarParo = (index, field, value) => {
-    const nuevosParos = form.paros.map((paro, i) =>
-      i === index ? { ...paro, [field]: value } : paro
+    const nuevosParos = form.paros.map((p, i) =>
+      i === index ? { ...p, [field]: value } : p
     );
     setForm({ ...form, paros: nuevosParos });
   };
 
-  const eliminarParo = (i) => {
-    setForm({ ...form, paros: form.paros.filter((_, idx) => idx !== i) });
+  const eliminarParo = (index) => {
+    setForm({
+      ...form,
+      paros: form.paros.filter((_, i) => i !== index),
+    });
   };
-
-  /* =======================
-     GUARDAR
-  ======================= */
 
   const guardar = async () => {
     if (
@@ -97,9 +90,7 @@ export default function Captura() {
 
     for (let paro of form.paros) {
       if (!paro.hecho || !paro.causa || !paro.accion || !paro.minutos) {
-        alert(
-          "⚠️ En cada paro debes completar Hecho, Causa, Acción y Tiempo (min)."
-        );
+        alert("⚠️ Completa Hecho, Causa, Acción y Tiempo en cada paro.");
         return;
       }
     }
@@ -153,206 +144,121 @@ export default function Captura() {
     });
   };
 
-  /* =======================
-     UI
-  ======================= */
+  const sincronizarPendientes = async () => {
+    const guardados =
+      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
+    if (guardados.length === 0) return;
+
+    for (const registro of guardados) {
+      await supabase.from("registros").insert([registro]);
+    }
+
+    localStorage.removeItem("capturasPendientes");
+    setPendientes([]);
+    alert("✅ Registros sincronizados");
+  };
 
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
 
-      {/* Fecha */}
-      <label className="block font-semibold">Fecha</label>
-      <input
-        type="date"
-        name="fecha"
-        value={form.fecha}
-        onChange={handleChange}
-        className="border p-2 w-full mb-2"
-      />
+      {pendientes.length > 0 && (
+        <div className="bg-yellow-100 p-2 mb-4">
+          ⚠️ Hay registros pendientes
+          <button
+            onClick={sincronizarPendientes}
+            className="ml-3 bg-yellow-600 text-white px-3 py-1"
+          >
+            Sincronizar
+          </button>
+        </div>
+      )}
 
-      {/* Operador */}
-      <label className="block font-semibold">Código de Operador</label>
-      <input
-        type="text"
-        value={form.codigo}
-        onChange={handleCodigo}
-        className="border p-2 w-full mb-2"
-      />
+      {/* === DATOS GENERALES === */}
+      <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="text" placeholder="Código operador" value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
+      <input type="text" value={form.nombre} disabled className="border p-2 w-full mb-2 bg-gray-100" />
 
-      <label className="block font-semibold">Nombre</label>
-      <input
-        type="text"
-        value={form.nombre}
-        disabled
-        className="border p-2 w-full mb-2 bg-gray-100"
-      />
-
-      {/* Máquina */}
-      <label className="block font-semibold">Máquina</label>
       <select
         value={form.maquina}
-        onChange={(e) =>
-          setForm({ ...form, maquina: e.target.value, proceso: "", paros: [] })
-        }
+        onChange={(e) => setForm({ ...form, maquina: e.target.value, proceso: "" })}
         className="border p-2 w-full mb-2"
       >
         <option value="">Seleccione máquina...</option>
-        {[...new Set(catalogo.map((m) => m.maquina))].map((maq, i) => (
-          <option key={i} value={maq}>
-            {maq}
-          </option>
+        {[...new Set(catalogo.map((m) => m.maquina))].map((m, i) => (
+          <option key={i} value={m}>{m}</option>
         ))}
       </select>
 
-      {/* Proceso */}
-      <label className="block font-semibold">Proceso</label>
       <select
         value={form.proceso}
         onChange={handleChange}
         name="proceso"
-        className="border p-2 w-full mb-2"
         disabled={!form.maquina}
+        className="border p-2 w-full mb-2"
       >
         <option value="">Seleccione proceso...</option>
-        {catalogo
-          .filter((m) => m.maquina === form.maquina)
-          .map((m, i) => (
-            <option key={i} value={m.proceso}>
-              {m.proceso}
-            </option>
-          ))}
+        {catalogo.filter(m => m.maquina === form.maquina).map((m, i) => (
+          <option key={i} value={m.proceso}>{m.proceso}</option>
+        ))}
       </select>
 
-      {/* Horarios */}
-      <div className="flex gap-4 mb-2">
-        <div className="flex-1">
-          <label className="block font-semibold">Hora Inicio</label>
-          <input
-            type="time"
-            name="inicio"
-            value={form.inicio}
-            onChange={handleChange}
-            className="border p-2 w-full"
-          />
-        </div>
-        <div className="flex-1">
-          <label className="block font-semibold">Hora Fin</label>
-          <input
-            type="time"
-            name="fin"
-            value={form.fin}
-            onChange={handleChange}
-            className="border p-2 w-full"
-          />
-        </div>
-      </div>
-
-      {/* Producción */}
-      <label className="block font-semibold">Carretas</label>
-      <input
-        type="number"
-        name="carretas"
-        value={form.carretas}
-        onChange={handleChange}
-        className="border p-2 w-full mb-2"
-      />
-
-      <label className="block font-semibold">Piezas Totales</label>
-      <input
-        type="number"
-        name="piezastotales"
-        value={form.piezastotales}
-        onChange={handleChange}
-        className="border p-2 w-full mb-2"
-      />
-
-      <label className="block font-semibold">Piezas Buenas</label>
-      <input
-        type="number"
-        name="piezasbuenas"
-        value={form.piezasbuenas}
-        onChange={handleChange}
-        className="border p-2 w-full mb-4"
-      />
-
-      {/* PAROS */}
-      <h3 className="text-lg font-bold mb-2">Paros (HCA)</h3>
+      {/* === PAROS HCA === */}
+      <h3 className="font-semibold mt-4 mb-2">Paros (HCA)</h3>
 
       {form.paros.map((p, i) => (
-        <div key={i} className="border p-3 mb-3 rounded">
-          <label className="font-semibold">Hecho (Paro)</label>
+        <div key={i} className="border p-3 mb-3">
           <select
             value={p.hecho}
-            onChange={(e) => {
-              const hecho = e.target.value;
-              const data = catalogoParos[form.maquina]?.find(
-                (x) => x.paro === hecho
-              );
-              editarParo(i, "hecho", hecho);
-              editarParo(i, "clasificacion", data?.causa || "");
-            }}
+            onChange={(e) => editarParo(i, "hecho", e.target.value)}
             className="border p-2 w-full mb-2"
-            disabled={!form.maquina}
           >
             <option value="">Seleccione paro...</option>
-            {(catalogoParos[form.maquina] || []).map((p, idx) => (
-              <option key={idx} value={p.paro}>
-                {p.paro}
+            {(catalogoParos[form.maquina] || []).map((paro, idx) => (
+              <option key={idx} value={paro.paro}>
+                {paro.paro} ({paro.causa})
               </option>
             ))}
           </select>
 
-          <label className="font-semibold">Causa</label>
           <input
             type="text"
+            placeholder="Causa (¿por qué ocurrió?)"
             value={p.causa}
             onChange={(e) => editarParo(i, "causa", e.target.value)}
             className="border p-2 w-full mb-2"
           />
 
-          <label className="font-semibold">Acción</label>
           <input
             type="text"
+            placeholder="Acción tomada"
             value={p.accion}
             onChange={(e) => editarParo(i, "accion", e.target.value)}
             className="border p-2 w-full mb-2"
           />
 
-          <label className="font-semibold">Tiempo (min)</label>
           <input
             type="number"
+            placeholder="Tiempo (min)"
             value={p.minutos}
             onChange={(e) => editarParo(i, "minutos", e.target.value)}
-            className="border p-2 w-32"
+            className="border p-2 w-32 mb-2"
           />
-
-          {p.clasificacion && (
-            <div className="text-sm text-gray-600 mt-1">
-              Clasificación: <strong>{p.clasificacion}</strong>
-            </div>
-          )}
 
           <button
             onClick={() => eliminarParo(i)}
-            className="bg-red-600 text-white px-3 py-1 mt-2"
+            className="bg-red-600 text-white px-3 py-1"
           >
             Eliminar paro
           </button>
         </div>
       ))}
 
-      <button
-        onClick={agregarParo}
-        className="bg-blue-600 text-white px-4 py-2"
-      >
+      <button onClick={agregarParo} className="bg-blue-600 text-white px-4 py-2">
         + Agregar paro
       </button>
 
-      <button
-        onClick={guardar}
-        className="bg-green-600 text-white px-4 py-2 mt-4"
-      >
+      <button onClick={guardar} className="ml-3 bg-green-600 text-white px-4 py-2">
         Guardar Registro
       </button>
     </div>
