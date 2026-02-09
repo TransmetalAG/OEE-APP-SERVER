@@ -18,8 +18,6 @@ export default function Captura() {
     carretas: "",
     piezastotales: "",
     piezasbuenas: "",
-    comentario_hora: "",
-    comentario_calidad: "",
     paros: [],
   });
 
@@ -104,22 +102,6 @@ export default function Captura() {
   ======================= */
 
   const guardar = async () => {
-    if (
-      !form.fecha ||
-      !form.codigo ||
-      !form.nombre ||
-      !form.maquina ||
-      !form.proceso ||
-      !form.inicio ||
-      !form.fin ||
-      !form.carretas ||
-      !form.piezastotales ||
-      !form.piezasbuenas
-    ) {
-      alert("⚠️ Completa todos los campos obligatorios.");
-      return;
-    }
-
     for (const p of form.paros) {
       if (!p.tipo || !p.minutos || !p.comentario) {
         alert("⚠️ Todos los paros deben llevar minutos y comentario.");
@@ -130,15 +112,15 @@ export default function Captura() {
         p.tipo === "No Planeado" &&
         (!p.origen || !p.hecho || !p.causa || !p.accion)
       ) {
-        alert("⚠️ Paros no planeados requieren origen, hecho, causa y acción.");
+        alert("⚠️ Paro no planeado incompleto.");
         return;
       }
 
       if (
         p.tipo === "Anomalía" &&
-        (!p.causa || !p.accion)
+        (!p.hecho || !p.causa || !p.accion)
       ) {
-        alert("⚠️ Anomalías requieren causa y acción.");
+        alert("⚠️ Anomalía incompleta.");
         return;
       }
     }
@@ -157,7 +139,7 @@ export default function Captura() {
     try {
       const { error } = await supabase.from("registros").insert([registro]);
       if (error) throw error;
-      alert("✅ Registro guardado en Supabase");
+      alert("✅ Registro guardado");
     } catch {
       const pendientesActuales =
         JSON.parse(localStorage.getItem("capturasPendientes")) || [];
@@ -167,7 +149,7 @@ export default function Captura() {
         JSON.stringify(pendientesActuales)
       );
       setPendientes(pendientesActuales);
-      alert("📦 Registro guardado localmente");
+      alert("📦 Guardado local");
     }
 
     setForm({ ...form, paros: [] });
@@ -181,64 +163,32 @@ export default function Captura() {
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Registro de Producción</h2>
 
-      <label>Fecha</label>
       <input type="date" name="fecha" value={form.fecha} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Código operador</label>
-      <input value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
-
-      <label>Nombre</label>
+      <input placeholder="Código operador" value={form.codigo} onChange={handleCodigo} className="border p-2 w-full mb-2" />
       <input value={form.nombre} disabled className="border p-2 w-full mb-2 bg-gray-100" />
 
-      <label>Máquina</label>
-      <select
-        value={form.maquina}
-        onChange={(e) =>
-          setForm({ ...form, maquina: e.target.value, proceso: "", paros: [] })
-        }
-        className="border p-2 w-full mb-2"
-      >
+      <select value={form.maquina} onChange={(e) => setForm({ ...form, maquina: e.target.value, proceso: "", paros: [] })} className="border p-2 w-full mb-2">
         <option value="">Seleccione máquina...</option>
         {[...new Set(catalogo.map((m) => m.maquina))].map((m) => (
           <option key={m} value={m}>{m}</option>
         ))}
       </select>
 
-      <label>Proceso</label>
-      <select
-        value={form.proceso}
-        onChange={handleChange}
-        name="proceso"
-        className="border p-2 w-full mb-2"
-        disabled={!form.maquina}
-      >
+      <select value={form.proceso} name="proceso" onChange={handleChange} disabled={!form.maquina} className="border p-2 w-full mb-2">
         <option value="">Seleccione proceso...</option>
-        {catalogo
-          .filter((m) => m.maquina === form.maquina)
-          .map((m) => (
-            <option key={m.proceso} value={m.proceso}>{m.proceso}</option>
-          ))}
+        {catalogo.filter((m) => m.maquina === form.maquina).map((m) => (
+          <option key={m.proceso} value={m.proceso}>{m.proceso}</option>
+        ))}
       </select>
 
       <div className="flex gap-2 mb-2">
-        <div className="w-full">
-          <label>Hora inicio</label>
-          <input type="time" name="inicio" value={form.inicio} onChange={handleChange} className="border p-2 w-full" />
-        </div>
-        <div className="w-full">
-          <label>Hora fin</label>
-          <input type="time" name="fin" value={form.fin} onChange={handleChange} className="border p-2 w-full" />
-        </div>
+        <input type="time" name="inicio" value={form.inicio} onChange={handleChange} className="border p-2 w-full" />
+        <input type="time" name="fin" value={form.fin} onChange={handleChange} className="border p-2 w-full" />
       </div>
 
-      <label>Carretas</label>
-      <input type="number" name="carretas" value={form.carretas} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Piezas totales</label>
-      <input type="number" name="piezastotales" value={form.piezastotales} onChange={handleChange} className="border p-2 w-full mb-2" />
-
-      <label>Piezas buenas</label>
-      <input type="number" name="piezasbuenas" value={form.piezasbuenas} onChange={handleChange} className="border p-2 w-full mb-4" />
+      <input type="number" name="carretas" placeholder="Carretas" value={form.carretas} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="number" name="piezastotales" placeholder="Piezas totales" value={form.piezastotales} onChange={handleChange} className="border p-2 w-full mb-2" />
+      <input type="number" name="piezasbuenas" placeholder="Piezas buenas" value={form.piezasbuenas} onChange={handleChange} className="border p-2 w-full mb-4" />
 
       <h3 className="font-bold mb-2">Paros (HCA)</h3>
 
@@ -271,6 +221,10 @@ export default function Captura() {
                 </select>
               )}
             </>
+          )}
+
+          {p.tipo === "Anomalía" && (
+            <input placeholder="Hecho" value={p.hecho} onChange={(e) => editarParo(i, "hecho", e.target.value)} className="border p-2 w-full mb-2" />
           )}
 
           {(p.tipo === "No Planeado" || p.tipo === "Anomalía") && (
