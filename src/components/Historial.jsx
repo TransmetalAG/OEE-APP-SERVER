@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 export default function Historial() {
   const [paros, setParos] = useState([]);
@@ -57,6 +59,46 @@ export default function Historial() {
   });
 
   /* =======================
+     EXPORTAR A EXCEL
+  ======================= */
+  const exportarExcel = () => {
+    if (parosFiltrados.length === 0) {
+      alert("No hay datos para exportar");
+      return;
+    }
+
+    const dataExcel = parosFiltrados.map((p) => ({
+      Fecha: p.fecha,
+      Máquina: p.maquina,
+      Operador: p.operador,
+      Tipo: p.tipo,
+      Origen: p.origen,
+      Minutos: p.minutos,
+      "Paro / Hecho": p.hecho,
+      Causa: p.causa,
+      Acción: p.accion,
+      Comentario: p.comentario,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataExcel);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Historial Paros");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const nombreArchivo = `Historial_Paros_${fechaFiltro || "todos"}.xlsx`;
+    saveAs(blob, nombreArchivo);
+  };
+
+  /* =======================
      UI
   ======================= */
   return (
@@ -64,7 +106,7 @@ export default function Historial() {
       <h2 className="text-xl font-bold mb-4">Historial de Paros</h2>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-4 mb-4">
+      <div className="flex flex-wrap gap-4 mb-4 items-end">
         <input
           type="date"
           value={fechaFiltro}
@@ -101,6 +143,13 @@ export default function Historial() {
           className="bg-blue-600 text-white px-4 py-2"
         >
           🔄 Refrescar
+        </button>
+
+        <button
+          onClick={exportarExcel}
+          className="bg-green-600 text-white px-4 py-2"
+        >
+          📤 Exportar Excel
         </button>
       </div>
 
