@@ -4,28 +4,23 @@ import { operadores } from "../data/operadores";
 import { catalogoParos } from "../data/catalogoParos";
 import { supabase } from "../supabaseClient";
 
+const FORM_INICIAL = {
+  fecha: new Date().toISOString().split("T")[0],
+  codigo: "",
+  nombre: "",
+  maquina: "",
+  proceso: "",
+  inicio: "",
+  fin: "",
+  carretas: "",
+  piezastotales: "",
+  piezasbuenas: "",
+  paros: [],
+};
+
 export default function Captura() {
-  const [pendientes, setPendientes] = useState([]);
-
-  const [form, setForm] = useState({
-    fecha: new Date().toISOString().split("T")[0],
-    codigo: "",
-    nombre: "",
-    maquina: "",
-    proceso: "",
-    inicio: "",
-    fin: "",
-    carretas: "",
-    piezastotales: "",
-    piezasbuenas: "",
-    paros: [],
-  });
-
-  useEffect(() => {
-    const guardados =
-      JSON.parse(localStorage.getItem("capturasPendientes")) || [];
-    setPendientes(guardados);
-  }, []);
+  const [form, setForm] = useState(FORM_INICIAL);
+  const [isSaving, setIsSaving] = useState(false);
 
   /* =======================
      HANDLERS GENERALES
@@ -98,13 +93,18 @@ export default function Captura() {
   };
 
   /* =======================
-     GUARDAR
+     GUARDAR (ANTI DUPLICADOS)
   ======================= */
 
   const guardar = async () => {
+    if (isSaving) return; // 🔒 evita doble click
+    setIsSaving(true);
+
+    // Validación paros
     for (const p of form.paros) {
       if (!p.tipo || !p.minutos || !p.comentario) {
         alert("⚠️ Todos los paros deben llevar minutos y comentario.");
+        setIsSaving(false);
         return;
       }
 
@@ -113,6 +113,7 @@ export default function Captura() {
         (!p.origen || !p.hecho || !p.causa || !p.accion)
       ) {
         alert("⚠️ Paro no planeado incompleto.");
+        setIsSaving(false);
         return;
       }
 
@@ -121,6 +122,7 @@ export default function Captura() {
         (!p.hecho || !p.causa || !p.accion)
       ) {
         alert("⚠️ Anomalía incompleta.");
+        setIsSaving(false);
         return;
       }
     }
@@ -139,20 +141,20 @@ export default function Captura() {
     try {
       const { error } = await supabase.from("registros").insert([registro]);
       if (error) throw error;
-      alert("✅ Registro guardado");
-    } catch {
-      const pendientesActuales =
-        JSON.parse(localStorage.getItem("capturasPendientes")) || [];
-      pendientesActuales.push(registro);
-      localStorage.setItem(
-        "capturasPendientes",
-        JSON.stringify(pendientesActuales)
-      );
-      setPendientes(pendientesActuales);
-      alert("📦 Guardado local");
-    }
 
-    setForm({ ...form, paros: [] });
+      alert("✅ Registro guardado correctamente");
+
+      // 🧼 RESET TOTAL DEL FORM
+      setForm({
+        ...FORM_INICIAL,
+        fecha: new Date().toISOString().split("T")[0],
+      });
+    } catch (err) {
+      alert("❌ Error guardando registro");
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   /* =======================
@@ -190,65 +192,14 @@ export default function Captura() {
       <input type="number" name="piezastotales" placeholder="Piezas totales" value={form.piezastotales} onChange={handleChange} className="border p-2 w-full mb-2" />
       <input type="number" name="piezasbuenas" placeholder="Piezas buenas" value={form.piezasbuenas} onChange={handleChange} className="border p-2 w-full mb-4" />
 
-      <h3 className="font-bold mb-2">Paros (HCA)</h3>
-
-      {form.paros.map((p, i) => (
-        <div key={i} className="border p-3 mb-3">
-          <select value={p.tipo} onChange={(e) => editarParo(i, "tipo", e.target.value)} className="border p-2 w-full mb-2">
-            <option value="">Tipo de paro...</option>
-            <option value="Planeado">Planeado</option>
-            <option value="No Planeado">No Planeado</option>
-            <option value="Anomalía">Anomalía</option>
-          </select>
-
-          {p.tipo === "No Planeado" && (
-            <>
-              <select value={p.origen} onChange={(e) => editarParo(i, "origen", e.target.value)} className="border p-2 w-full mb-2">
-                <option value="">Origen...</option>
-                <option value="Mecánica">Mecánica</option>
-                <option value="Eléctrica">Eléctrica</option>
-                <option value="Operacional">Operacional</option>
-              </select>
-
-              {p.origen && (
-                <select value={p.hecho} onChange={(e) => editarParo(i, "hecho", e.target.value)} className="border p-2 w-full mb-2">
-                  <option value="">Seleccione paro...</option>
-                  {(catalogoParos[form.maquina] || [])
-                    .filter((x) => x.causa === p.origen)
-                    .map((x, idx) => (
-                      <option key={idx} value={x.paro}>{x.paro}</option>
-                    ))}
-                </select>
-              )}
-            </>
-          )}
-
-          {p.tipo === "Anomalía" && (
-            <input placeholder="Hecho" value={p.hecho} onChange={(e) => editarParo(i, "hecho", e.target.value)} className="border p-2 w-full mb-2" />
-          )}
-
-          {(p.tipo === "No Planeado" || p.tipo === "Anomalía") && (
-            <>
-              <input placeholder="Causa" value={p.causa} onChange={(e) => editarParo(i, "causa", e.target.value)} className="border p-2 w-full mb-2" />
-              <input placeholder="Acción" value={p.accion} onChange={(e) => editarParo(i, "accion", e.target.value)} className="border p-2 w-full mb-2" />
-            </>
-          )}
-
-          <input type="number" placeholder="Minutos" value={p.minutos} onChange={(e) => editarParo(i, "minutos", e.target.value)} className="border p-2 w-full mb-2" />
-          <input placeholder="Comentario" value={p.comentario} onChange={(e) => editarParo(i, "comentario", e.target.value)} className="border p-2 w-full mb-2" />
-
-          <button onClick={() => eliminarParo(i)} className="bg-red-600 text-white w-full py-1">
-            Eliminar paro
-          </button>
-        </div>
-      ))}
-
-      <button onClick={agregarParo} className="bg-blue-600 text-white px-4 py-2 mb-4">
-        + Agregar paro
-      </button>
-
-      <button onClick={guardar} className="bg-green-600 text-white px-4 py-2 w-full">
-        Guardar Registro
+      <button
+        onClick={guardar}
+        disabled={isSaving}
+        className={`text-white px-4 py-2 w-full ${
+          isSaving ? "bg-gray-400" : "bg-green-600"
+        }`}
+      >
+        {isSaving ? "Guardando..." : "Guardar Registro"}
       </button>
     </div>
   );
