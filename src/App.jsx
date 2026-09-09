@@ -19,7 +19,7 @@ export default function App() {
                 <span className="text-white text-2xl">🏭</span>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">📊 Control de Producción</h1>
+                <h1 className="text-2xl font-bold text-gray-800">Control de Producción</h1>
                 <p className="text-sm text-gray-500">Sistema de gestión de paros y eficiencia</p>
               </div>
             </div>
@@ -31,7 +31,7 @@ export default function App() {
                   : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md'
               }`}
             >
-              {auth ? '🚪 Cerrar Sesión' : '👤 Iniciar Sesión'}
+              {auth ? 'Cerrar Sesión' : 'Iniciar Sesión'}
             </button>
           </div>
         </header>
@@ -46,7 +46,7 @@ export default function App() {
                 : 'bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200'
             }`}
           >
-            📝 Captura
+            Captura
           </button>
           {auth && (
             <button
@@ -57,7 +57,7 @@ export default function App() {
                   : 'bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200'
               }`}
             >
-              📋 Historial
+              Historial
             </button>
           )}
           {auth && (
@@ -69,7 +69,7 @@ export default function App() {
                   : 'bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200'
               }`}
             >
-              📈 KPIs / OEE
+              KPIs / OEE
             </button>
           )}
         </nav>
@@ -84,7 +84,7 @@ export default function App() {
 
         {/* Footer */}
         <footer className="mt-8 text-center text-sm text-gray-400 border-t border-gray-200 pt-4">
-          <p>© 2026 Sistema de Control de Producción • Todos los derechos reservados</p>
+          <p>© 2026 Sistema de Control de Producción</p>
         </footer>
       </div>
     </div>
