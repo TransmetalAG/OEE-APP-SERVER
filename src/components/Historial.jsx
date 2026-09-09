@@ -2,6 +2,19 @@ import React, { useEffect, useState, useMemo } from "react";
 import { supabase } from "../supabaseClient";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Line,
+  ComposedChart,
+  Cell
+} from 'recharts';
 
 const TIPOS_PARO = ["Planeado", "No Planeado", "Anomalía"];
 
@@ -12,6 +25,7 @@ export default function Historial() {
   const [fechaFin, setFechaFin] = useState("");
   const [maquinaFiltro, setMaquinaFiltro] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("");
+  const [mostrarPareto, setMostrarPareto] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -68,6 +82,54 @@ export default function Historial() {
     });
   }, [paros, fechaInicio, fechaFin, maquinaFiltro, tipoFiltro]);
 
+  // Datos para el Pareto
+  const datosPareto = useMemo(() => {
+    // Agrupar por causa o hecho (puedes cambiar a lo que quieras analizar)
+    const agrupado = parosFiltrados.reduce((acc, p) => {
+      const key = p.causa || "Sin causa";
+      acc[key] = (acc[key] || 0) + p.minutos;
+      return acc;
+    }, {});
+
+    // Convertir a array y ordenar de mayor a menor
+    const sorted = Object.entries(agrupado)
+      .map(([causa, minutos]) => ({ causa, minutos }))
+      .sort((a, b) => b.minutos - a.minutos);
+
+    // Calcular porcentaje acumulado
+    const total = sorted.reduce((sum, item) => sum + item.minutos, 0);
+    let acumulado = 0;
+    
+    return sorted.map((item) => {
+      acumulado += item.minutos;
+      const porcentaje = (item.minutos / total) * 100;
+      const porcentajeAcumulado = (acumulado / total) * 100;
+      return {
+        ...item,
+        porcentaje: Math.round(porcentaje * 100) / 100,
+        porcentajeAcumulado: Math.round(porcentajeAcumulado * 100) / 100,
+        esPareto: porcentajeAcumulado <= 80,
+      };
+    });
+  }, [parosFiltrados]);
+
+  // Estadísticas del Pareto
+  const estadisticasPareto = useMemo(() => {
+    if (datosPareto.length === 0) return null;
+    
+    const totalMinutos = datosPareto.reduce((sum, item) => sum + item.minutos, 0);
+    const causas80 = datosPareto.filter(item => item.porcentajeAcumulado <= 80);
+    const minutos80 = causas80.reduce((sum, item) => sum + item.minutos, 0);
+    const porcentaje80 = (minutos80 / totalMinutos) * 100;
+    
+    return {
+      totalCausas: datosPareto.length,
+      causas80: causas80.length,
+      porcentaje80: Math.round(porcentaje80 * 100) / 100,
+      totalMinutos,
+    };
+  }, [datosPareto]);
+
   const maquinasUnicas = useMemo(() => 
     [...new Set(paros.map((p) => p.maquina))],
     [paros]
@@ -105,7 +167,6 @@ export default function Historial() {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
-    // Nombre del archivo con el rango de fechas
     let nombreArchivo = "Historial_Paros";
     if (fechaInicio && fechaFin) {
       nombreArchivo += `_${fechaInicio}_a_${fechaFin}`;
@@ -119,7 +180,6 @@ export default function Historial() {
     saveAs(blob, nombreArchivo);
   };
 
-  // Limpiar filtros
   const limpiarFiltros = () => {
     setFechaInicio("");
     setFechaFin("");
@@ -127,13 +187,15 @@ export default function Historial() {
     setTipoFiltro("");
   };
 
+  // Colores para las barras del Pareto
+  const COLORS = ['#4CAF50', '#8BC34A', '#FFEB3B', '#FF9800', '#F44336', '#9C27B0', '#3F51B5', '#009688'];
+
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Historial de Paros</h2>
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-4 mb-4 items-end">
-        {/* Rango de fechas */}
         <div className="flex gap-2 items-center">
           <label className="text-sm font-medium">Desde:</label>
           <input
@@ -153,7 +215,6 @@ export default function Historial() {
           />
         </div>
 
-        {/* Filtro de máquina */}
         <select
           value={maquinaFiltro}
           onChange={(e) => setMaquinaFiltro(e.target.value)}
@@ -168,7 +229,6 @@ export default function Historial() {
           ))}
         </select>
 
-        {/* Filtro de tipo */}
         <select
           value={tipoFiltro}
           onChange={(e) => setTipoFiltro(e.target.value)}
@@ -183,7 +243,6 @@ export default function Historial() {
           ))}
         </select>
 
-        {/* Botones de acción */}
         <button
           onClick={fetchData}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -206,6 +265,17 @@ export default function Historial() {
         >
           📤 Exportar Excel
         </button>
+
+        <button
+          onClick={() => setMostrarPareto(!mostrarPareto)}
+          className={`px-4 py-2 rounded ${
+            mostrarPareto 
+              ? "bg-purple-600 text-white hover:bg-purple-700" 
+              : "bg-gray-200 hover:bg-gray-300"
+          }`}
+        >
+          📊 Pareto
+        </button>
       </div>
 
       {/* Información de registros */}
@@ -219,6 +289,140 @@ export default function Historial() {
           </span>
         )}
       </div>
+
+      {/* Gráfica de Pareto */}
+      {mostrarPareto && datosPareto.length > 0 && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+          <h3 className="text-lg font-bold mb-2">📊 Análisis de Pareto - Causas de Paros</h3>
+          
+          {/* Estadísticas */}
+          {estadisticasPareto && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="bg-white p-3 rounded shadow">
+                <div className="text-sm text-gray-600">Total de minutos</div>
+                <div className="text-xl font-bold text-blue-600">
+                  {estadisticasPareto.totalMinutos} min
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded shadow">
+                <div className="text-sm text-gray-600">Causas totales</div>
+                <div className="text-xl font-bold">
+                  {estadisticasPareto.totalCausas}
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded shadow">
+                <div className="text-sm text-gray-600">Causas que generan el 80%</div>
+                <div className="text-xl font-bold text-green-600">
+                  {estadisticasPareto.causas80}
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded shadow">
+                <div className="text-sm text-gray-600">% representado</div>
+                <div className="text-xl font-bold text-purple-600">
+                  {estadisticasPareto.porcentaje80}%
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Gráfica */}
+          <ResponsiveContainer width="100%" height={400}>
+            <ComposedChart data={datosPareto}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="causa" 
+                angle={-45} 
+                textAnchor="end" 
+                height={80}
+                interval={0}
+              />
+              <YAxis yAxisId="left" label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }} />
+              <YAxis 
+                yAxisId="right" 
+                orientation="right" 
+                label={{ value: '% Acumulado', angle: 90, position: 'insideRight' }}
+                domain={[0, 100]}
+              />
+              <Tooltip 
+                formatter={(value, name) => {
+                  if (name === 'porcentajeAcumulado') return `${value}%`;
+                  if (name === 'porcentaje') return `${value}%`;
+                  return value;
+                }}
+              />
+              <Legend />
+              <Bar yAxisId="left" dataKey="minutos" fill="#8884d8" name="Minutos">
+                {datosPareto.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.esPareto ? '#4CAF50' : '#F44336'}
+                  />
+                ))}
+              </Bar>
+              <Line 
+                yAxisId="right" 
+                type="monotone" 
+                dataKey="porcentajeAcumulado" 
+                stroke="#FF7300" 
+                name="% Acumulado"
+                strokeWidth={2}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+
+          {/* Leyenda */}
+          <div className="flex gap-4 mt-2 justify-center">
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-4 bg-green-500 rounded"></div>
+              <span className="text-sm">Causas que representan el 80%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-4 bg-red-500 rounded"></div>
+              <span className="text-sm">Causas que representan el 20%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-1 bg-orange-500"></div>
+              <span className="text-sm">Línea del 80% acumulado</span>
+            </div>
+          </div>
+
+          {/* Lista de causas */}
+          <div className="mt-4">
+            <h4 className="font-semibold mb-2">Detalle de causas:</h4>
+            <div className="overflow-x-auto max-h-40 overflow-y-auto">
+              <table className="w-full text-sm border">
+                <thead className="bg-gray-100 sticky top-0">
+                  <tr>
+                    <th className="border p-1 text-left">#</th>
+                    <th className="border p-1 text-left">Causa</th>
+                    <th className="border p-1 text-right">Minutos</th>
+                    <th className="border p-1 text-right">%</th>
+                    <th className="border p-1 text-right">% Acumulado</th>
+                    <th className="border p-1 text-center">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {datosPareto.map((item, index) => (
+                    <tr key={index} className={item.esPareto ? 'bg-green-50' : 'bg-red-50'}>
+                      <td className="border p-1 text-center">{index + 1}</td>
+                      <td className="border p-1">{item.causa}</td>
+                      <td className="border p-1 text-right">{item.minutos}</td>
+                      <td className="border p-1 text-right">{item.porcentaje}%</td>
+                      <td className="border p-1 text-right">{item.porcentajeAcumulado}%</td>
+                      <td className="border p-1 text-center">
+                        {item.esPareto ? 
+                          <span className="text-green-600">✅ 80%</span> : 
+                          <span className="text-red-600">⬆️ 20%</span>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabla */}
       <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
