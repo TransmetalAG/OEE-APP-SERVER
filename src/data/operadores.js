@@ -1,11 +1,10 @@
 // src/data/operadores.js
 export const operadores = [
-  { codigo: "10002636", nombre: "HERNANDEZ SOLARES MYNOR WILFREDO" },
+  { codigo: "10004916", nombre: "LOPEZ ESCOBAR ANDERSON RAFAEL" },
   { codigo: "10002212", nombre: "TELLES CORADO EDVIN ARNALDO" },
   { codigo: "10000210", nombre: "HERNANDEZ NAVARIJO MARVIN" },
   { codigo: "10001865", nombre: "HERRERA CONTRERAS MARCO ANTONIO" },
   { codigo: "10002578", nombre: "PEREZ ESPINOZA ERVIN ROLANDO" },
-  { codigo: "10002634", nombre: "CUXUN CAC ELMER EMANUEL" },
   { codigo: "10003154", nombre: "PEREZ ROSALES ALDO DANIEL" },
   { codigo: "10004910", nombre: "COSOJAY PEREZ CARLOS ALEXANDER" },
   { codigo: "10004026", nombre: "CAMPOS DE LA ROSA JONATHAN ALEXANDER" },
@@ -19,7 +18,8 @@ export const operadores = [
   { codigo: "10002675", nombre: "GARCIA CARCUZ CARLOS GIOVANY" },
   { codigo: "10002213", nombre: "HAZ SACALXOT ERWIN NOE" },
   { codigo: "10004865", nombre: "GUERRERO GUZMAN RONY LEONEL" },
-  { codigo: "10004938", nombre: "SUQUE REYES ERIK SANTIAGO " },
-  { codigo: "10005067", nombre: "PIMENTEL GUTIERREZ KENDEL SAMUEL " },
+  { codigo: "10004938", nombre: "SUQUE REYES ERIK SANTIAGO" },
+  { codigo: "10005067", nombre: "PIMENTEL GUTIERREZ KENDEL SAMUEL" },
+  { codigo: "10004865", nombre: "HERNANDES SANCHEZ ABNER JOSUE" },
   
 ];
