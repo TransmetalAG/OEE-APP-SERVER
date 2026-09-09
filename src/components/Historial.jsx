@@ -1,431 +1,249 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { supabase } from "../supabaseClient";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Line,
-  ComposedChart,
-  Cell
-} from 'recharts';
-
-const TIPOS_PARO = ["Planeado", "No Planeado", "Anomalía"];
+// ... (mantén todas las importaciones igual)
 
 export default function Historial() {
-  const [paros, setParos] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
-  const [maquinaFiltro, setMaquinaFiltro] = useState("");
-  const [tipoFiltro, setTipoFiltro] = useState("");
-  const [mostrarPareto, setMostrarPareto] = useState(false);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("registros")
-        .select("*")
-        .order("fecha", { ascending: false });
-
-      if (error) throw error;
-
-      const parosFlat = (data || []).flatMap((r) =>
-        (r.paros || []).map((p) => ({
-          fecha: r.fecha,
-          maquina: r.maquina,
-          operador: r.nombre,
-          inicio: r.inicio,
-          fin: r.fin,
-          tipo: p.tipo,
-          origen: p.origen || "",
-          hecho: p.hecho || "",
-          causa: p.causa || "",
-          accion: p.accion || "",
-          minutos: p.minutos,
-          comentario: p.comentario || "",
-        }))
-      );
-
-      setParos(parosFlat);
-    } catch (error) {
-      console.error("Error cargando registros", error);
-      alert("Error al cargar los datos. Por favor, intenta de nuevo.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Filtros con rango de fechas
-  const parosFiltrados = useMemo(() => {
-    return paros.filter((p) => {
-      const cumpleFecha = 
-        (!fechaInicio || p.fecha >= fechaInicio) &&
-        (!fechaFin || p.fecha <= fechaFin);
-      
-      return (
-        cumpleFecha &&
-        (!maquinaFiltro || p.maquina === maquinaFiltro) &&
-        (!tipoFiltro || p.tipo === tipoFiltro)
-      );
-    });
-  }, [paros, fechaInicio, fechaFin, maquinaFiltro, tipoFiltro]);
-
-  // Datos para el Pareto
-  const datosPareto = useMemo(() => {
-    // Agrupar por causa o hecho (puedes cambiar a lo que quieras analizar)
-    const agrupado = parosFiltrados.reduce((acc, p) => {
-      const key = p.causa || "Sin causa";
-      acc[key] = (acc[key] || 0) + p.minutos;
-      return acc;
-    }, {});
-
-    // Convertir a array y ordenar de mayor a menor
-    const sorted = Object.entries(agrupado)
-      .map(([causa, minutos]) => ({ causa, minutos }))
-      .sort((a, b) => b.minutos - a.minutos);
-
-    // Calcular porcentaje acumulado
-    const total = sorted.reduce((sum, item) => sum + item.minutos, 0);
-    let acumulado = 0;
-    
-    return sorted.map((item) => {
-      acumulado += item.minutos;
-      const porcentaje = (item.minutos / total) * 100;
-      const porcentajeAcumulado = (acumulado / total) * 100;
-      return {
-        ...item,
-        porcentaje: Math.round(porcentaje * 100) / 100,
-        porcentajeAcumulado: Math.round(porcentajeAcumulado * 100) / 100,
-        esPareto: porcentajeAcumulado <= 80,
-      };
-    });
-  }, [parosFiltrados]);
-
-  // Estadísticas del Pareto
-  const estadisticasPareto = useMemo(() => {
-    if (datosPareto.length === 0) return null;
-    
-    const totalMinutos = datosPareto.reduce((sum, item) => sum + item.minutos, 0);
-    const causas80 = datosPareto.filter(item => item.porcentajeAcumulado <= 80);
-    const minutos80 = causas80.reduce((sum, item) => sum + item.minutos, 0);
-    const porcentaje80 = (minutos80 / totalMinutos) * 100;
-    
-    return {
-      totalCausas: datosPareto.length,
-      causas80: causas80.length,
-      porcentaje80: Math.round(porcentaje80 * 100) / 100,
-      totalMinutos,
-    };
-  }, [datosPareto]);
-
-  const maquinasUnicas = useMemo(() => 
-    [...new Set(paros.map((p) => p.maquina))],
-    [paros]
-  );
-
-  const exportarExcel = () => {
-    if (parosFiltrados.length === 0) {
-      alert("No hay datos para exportar");
-      return;
-    }
-
-    const dataExcel = parosFiltrados.map((p) => ({
-      Fecha: p.fecha,
-      Máquina: p.maquina,
-      Operador: p.operador,
-      Tipo: p.tipo,
-      Origen: p.origen,
-      Minutos: p.minutos,
-      "Paro / Hecho": p.hecho,
-      Causa: p.causa,
-      Acción: p.accion,
-      Comentario: p.comentario,
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(dataExcel);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Historial Paros");
-
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-
-    let nombreArchivo = "Historial_Paros";
-    if (fechaInicio && fechaFin) {
-      nombreArchivo += `_${fechaInicio}_a_${fechaFin}`;
-    } else if (fechaInicio) {
-      nombreArchivo += `_desde_${fechaInicio}`;
-    } else if (fechaFin) {
-      nombreArchivo += `_hasta_${fechaFin}`;
-    }
-    nombreArchivo += ".xlsx";
-    
-    saveAs(blob, nombreArchivo);
-  };
-
-  const limpiarFiltros = () => {
-    setFechaInicio("");
-    setFechaFin("");
-    setMaquinaFiltro("");
-    setTipoFiltro("");
-  };
-
-  // Colores para las barras del Pareto
-  const COLORS = ['#4CAF50', '#8BC34A', '#FFEB3B', '#FF9800', '#F44336', '#9C27B0', '#3F51B5', '#009688'];
+  // ... (todos los useState y funciones igual)
 
   return (
-    <div className="p-4 bg-white shadow">
-      <h2 className="text-xl font-bold mb-4">Historial de Paros</h2>
+    <div className="bg-white rounded-lg shadow-lg p-3 sm:p-4 md:p-6">
+      <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-4">📋 Historial de Paros</h2>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4 mb-4 items-end">
-        <div className="flex gap-2 items-center">
-          <label className="text-sm font-medium">Desde:</label>
+      {/* Filtros - Responsive */}
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mb-4">
+        {/* Fechas */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <label className="text-xs sm:text-sm font-medium">Desde:</label>
           <input
             type="date"
             value={fechaInicio}
             onChange={(e) => setFechaInicio(e.target.value)}
-            className="border p-2 rounded"
-            aria-label="Fecha inicio"
+            className="border p-1.5 sm:p-2 rounded text-xs sm:text-sm flex-1 min-w-[120px]"
           />
-          <label className="text-sm font-medium">Hasta:</label>
+          <label className="text-xs sm:text-sm font-medium">Hasta:</label>
           <input
             type="date"
             value={fechaFin}
             onChange={(e) => setFechaFin(e.target.value)}
-            className="border p-2 rounded"
-            aria-label="Fecha fin"
+            className="border p-1.5 sm:p-2 rounded text-xs sm:text-sm flex-1 min-w-[120px]"
           />
         </div>
 
+        {/* Selectores */}
         <select
           value={maquinaFiltro}
           onChange={(e) => setMaquinaFiltro(e.target.value)}
-          className="border p-2 rounded"
-          aria-label="Filtrar por máquina"
+          className="border p-1.5 sm:p-2 rounded text-xs sm:text-sm flex-1 sm:flex-none min-w-[120px]"
         >
           <option value="">Todas las máquinas</option>
           {maquinasUnicas.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
+            <option key={m} value={m}>{m}</option>
           ))}
         </select>
 
         <select
           value={tipoFiltro}
           onChange={(e) => setTipoFiltro(e.target.value)}
-          className="border p-2 rounded"
-          aria-label="Filtrar por tipo"
+          className="border p-1.5 sm:p-2 rounded text-xs sm:text-sm flex-1 sm:flex-none min-w-[120px]"
         >
           <option value="">Todos los tipos</option>
           {TIPOS_PARO.map((tipo) => (
-            <option key={tipo} value={tipo}>
-              {tipo}
-            </option>
+            <option key={tipo} value={tipo}>{tipo}</option>
           ))}
         </select>
 
-        <button
-          onClick={fetchData}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          disabled={loading}
-        >
-          {loading ? "Cargando..." : "🔄 Refrescar"}
-        </button>
+        {/* Botones - En móvil se apilan */}
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <button
+            onClick={fetchData}
+            className="flex-1 sm:flex-none bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-xs sm:text-sm"
+            disabled={loading}
+          >
+            {loading ? "⏳" : "🔄"} <span className="hidden xs:inline">Refrescar</span>
+          </button>
 
-        <button
-          onClick={limpiarFiltros}
-          className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-        >
-          🗑️ Limpiar filtros
-        </button>
+          <button
+            onClick={limpiarFiltros}
+            className="flex-1 sm:flex-none bg-gray-500 text-white px-3 py-1.5 rounded hover:bg-gray-600 text-xs sm:text-sm"
+          >
+            🗑️ <span className="hidden xs:inline">Limpiar</span>
+          </button>
 
-        <button
-          onClick={exportarExcel}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          disabled={parosFiltrados.length === 0}
-        >
-          📤 Exportar Excel
-        </button>
+          <button
+            onClick={exportarExcel}
+            className="flex-1 sm:flex-none bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-xs sm:text-sm"
+            disabled={parosFiltrados.length === 0}
+          >
+            📤 <span className="hidden xs:inline">Exportar</span>
+          </button>
 
-        <button
-          onClick={() => setMostrarPareto(!mostrarPareto)}
-          className={`px-4 py-2 rounded ${
-            mostrarPareto 
-              ? "bg-purple-600 text-white hover:bg-purple-700" 
-              : "bg-gray-200 hover:bg-gray-300"
-          }`}
-        >
-          📊 Pareto
-        </button>
+          <button
+            onClick={() => setMostrarPareto(!mostrarPareto)}
+            className={`flex-1 sm:flex-none px-3 py-1.5 rounded text-xs sm:text-sm ${
+              mostrarPareto 
+                ? "bg-purple-600 text-white hover:bg-purple-700" 
+                : "bg-gray-200 hover:bg-gray-300"
+            }`}
+          >
+            📊 <span className="hidden xs:inline">Pareto</span>
+          </button>
+        </div>
       </div>
 
-      {/* Información de registros */}
-      <div className="mb-2 text-sm text-gray-600 flex justify-between">
+      {/* Info de registros */}
+      <div className="mb-3 text-xs sm:text-sm text-gray-600 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 bg-gray-50 p-2 sm:p-3 rounded">
         <span>
-          Mostrando {parosFiltrados.length} de {paros.length} registros
+          Mostrando <span className="font-bold text-blue-600">{parosFiltrados.length}</span> de <span className="font-bold">{paros.length}</span> registros
         </span>
         {(fechaInicio || fechaFin) && (
-          <span className="text-blue-600">
-            Filtro: {fechaInicio || "Inicio"} → {fechaFin || "Fin"}
+          <span className="text-blue-600 text-xs sm:text-sm">
+            📅 {fechaInicio || "Inicio"} → {fechaFin || "Fin"}
           </span>
         )}
       </div>
 
-      {/* Gráfica de Pareto */}
+      {/* Gráfica de Pareto - Ajustada para móvil */}
       {mostrarPareto && datosPareto.length > 0 && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-          <h3 className="text-lg font-bold mb-2">📊 Análisis de Pareto - Causas de Paros</h3>
+        <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg border">
+          <h3 className="text-base sm:text-lg font-bold mb-2">📊 Análisis de Pareto</h3>
           
-          {/* Estadísticas */}
+          {/* Estadísticas - Grid responsive */}
           {estadisticasPareto && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className="bg-white p-3 rounded shadow">
-                <div className="text-sm text-gray-600">Total de minutos</div>
-                <div className="text-xl font-bold text-blue-600">
-                  {estadisticasPareto.totalMinutos} min
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3">
+              <div className="bg-white p-2 sm:p-3 rounded shadow text-center">
+                <div className="text-[10px] sm:text-xs text-gray-600">Total minutos</div>
+                <div className="text-base sm:text-xl font-bold text-blue-600">
+                  {estadisticasPareto.totalMinutos}
                 </div>
               </div>
-              <div className="bg-white p-3 rounded shadow">
-                <div className="text-sm text-gray-600">Causas totales</div>
-                <div className="text-xl font-bold">
+              <div className="bg-white p-2 sm:p-3 rounded shadow text-center">
+                <div className="text-[10px] sm:text-xs text-gray-600">Causas totales</div>
+                <div className="text-base sm:text-xl font-bold">
                   {estadisticasPareto.totalCausas}
                 </div>
               </div>
-              <div className="bg-white p-3 rounded shadow">
-                <div className="text-sm text-gray-600">Causas que generan el 80%</div>
-                <div className="text-xl font-bold text-green-600">
+              <div className="bg-white p-2 sm:p-3 rounded shadow text-center">
+                <div className="text-[10px] sm:text-xs text-gray-600">Causas que generan 80%</div>
+                <div className="text-base sm:text-xl font-bold text-green-600">
                   {estadisticasPareto.causas80}
                 </div>
               </div>
-              <div className="bg-white p-3 rounded shadow">
-                <div className="text-sm text-gray-600">% representado</div>
-                <div className="text-xl font-bold text-purple-600">
+              <div className="bg-white p-2 sm:p-3 rounded shadow text-center">
+                <div className="text-[10px] sm:text-xs text-gray-600">% representado</div>
+                <div className="text-base sm:text-xl font-bold text-purple-600">
                   {estadisticasPareto.porcentaje80}%
                 </div>
               </div>
             </div>
           )}
 
-          {/* Gráfica */}
-          <ResponsiveContainer width="100%" height={400}>
-            <ComposedChart data={datosPareto}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="causa" 
-                angle={-45} 
-                textAnchor="end" 
-                height={80}
-                interval={0}
-              />
-              <YAxis yAxisId="left" label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }} />
-              <YAxis 
-                yAxisId="right" 
-                orientation="right" 
-                label={{ value: '% Acumulado', angle: 90, position: 'insideRight' }}
-                domain={[0, 100]}
-              />
-              <Tooltip 
-                formatter={(value, name) => {
-                  if (name === 'porcentajeAcumulado') return `${value}%`;
-                  if (name === 'porcentaje') return `${value}%`;
-                  return value;
-                }}
-              />
-              <Legend />
-              <Bar yAxisId="left" dataKey="minutos" fill="#8884d8" name="Minutos">
-                {datosPareto.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.esPareto ? '#4CAF50' : '#F44336'}
-                  />
-                ))}
-              </Bar>
-              <Line 
-                yAxisId="right" 
-                type="monotone" 
-                dataKey="porcentajeAcumulado" 
-                stroke="#FF7300" 
-                name="% Acumulado"
-                strokeWidth={2}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          {/* Gráfica - Altura ajustable */}
+          <div className="w-full" style={{ minHeight: '300px' }}>
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart 
+                data={datosPareto}
+                margin={{ top: 10, right: 20, left: 0, bottom: 60 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="causa" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={60}
+                  interval={0}
+                  tick={{ fontSize: 9 }}
+                />
+                <YAxis 
+                  yAxisId="left" 
+                  tick={{ fontSize: 9 }}
+                  width={40}
+                />
+                <YAxis 
+                  yAxisId="right" 
+                  orientation="right" 
+                  domain={[0, 100]}
+                  tick={{ fontSize: 9 }}
+                  width={35}
+                />
+                <Tooltip 
+                  formatter={(value, name) => {
+                    if (name === 'porcentajeAcumulado') return `${value}%`;
+                    return value;
+                  }}
+                  contentStyle={{ fontSize: '11px' }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Bar yAxisId="left" dataKey="minutos" name="Minutos">
+                  {datosPareto.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.esPareto ? '#4CAF50' : '#F44336'}
+                    />
+                  ))}
+                </Bar>
+                <Line 
+                  yAxisId="right" 
+                  type="monotone" 
+                  dataKey="porcentajeAcumulado" 
+                  stroke="#FF7300" 
+                  name="% Acumulado"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
 
-          {/* Leyenda */}
-          <div className="flex gap-4 mt-2 justify-center">
+          {/* Leyenda - En móvil se apila */}
+          <div className="flex flex-wrap gap-2 sm:gap-4 mt-2 justify-center">
             <div className="flex items-center gap-1">
-              <div className="w-4 h-4 bg-green-500 rounded"></div>
-              <span className="text-sm">Causas que representan el 80%</span>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-green-500 rounded"></div>
+              <span className="text-[10px] sm:text-sm">80%</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-4 h-4 bg-red-500 rounded"></div>
-              <span className="text-sm">Causas que representan el 20%</span>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded"></div>
+              <span className="text-[10px] sm:text-sm">20%</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-4 h-1 bg-orange-500"></div>
-              <span className="text-sm">Línea del 80% acumulado</span>
+              <div className="w-6 h-0.5 sm:w-8 bg-orange-500"></div>
+              <span className="text-[10px] sm:text-sm">Línea 80%</span>
             </div>
           </div>
 
-          {/* Lista de causas */}
-          <div className="mt-4">
-            <h4 className="font-semibold mb-2">Detalle de causas:</h4>
-            <div className="overflow-x-auto max-h-40 overflow-y-auto">
-              <table className="w-full text-sm border">
-                <thead className="bg-gray-100 sticky top-0">
-                  <tr>
-                    <th className="border p-1 text-left">#</th>
-                    <th className="border p-1 text-left">Causa</th>
-                    <th className="border p-1 text-right">Minutos</th>
-                    <th className="border p-1 text-right">%</th>
-                    <th className="border p-1 text-right">% Acumulado</th>
-                    <th className="border p-1 text-center">Estado</th>
+          {/* Tabla de causas - Scroll horizontal en móvil */}
+          <div className="mt-3 overflow-x-auto max-h-60 overflow-y-auto border rounded">
+            <table className="w-full text-[10px] sm:text-sm">
+              <thead className="bg-gray-100 sticky top-0">
+                <tr>
+                  <th className="border p-1 sm:p-2 text-left">#</th>
+                  <th className="border p-1 sm:p-2 text-left">Causa</th>
+                  <th className="border p-1 sm:p-2 text-right">Min</th>
+                  <th className="border p-1 sm:p-2 text-right">%</th>
+                  <th className="border p-1 sm:p-2 text-right">% Acum</th>
+                  <th className="border p-1 sm:p-2 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {datosPareto.map((item, index) => (
+                  <tr key={index} className={item.esPareto ? 'bg-green-50' : 'bg-red-50'}>
+                    <td className="border p-1 sm:p-2 text-center">{index + 1}</td>
+                    <td className="border p-1 sm:p-2 truncate max-w-[80px] sm:max-w-none" title={item.causa}>
+                      {item.causa}
+                    </td>
+                    <td className="border p-1 sm:p-2 text-right font-medium">{item.minutos}</td>
+                    <td className="border p-1 sm:p-2 text-right">{item.porcentaje}%</td>
+                    <td className="border p-1 sm:p-2 text-right">{item.porcentajeAcumulado}%</td>
+                    <td className="border p-1 sm:p-2 text-center text-[10px] sm:text-sm">
+                      {item.esPareto ? '✅ 80%' : '⬆️ 20%'}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {datosPareto.map((item, index) => (
-                    <tr key={index} className={item.esPareto ? 'bg-green-50' : 'bg-red-50'}>
-                      <td className="border p-1 text-center">{index + 1}</td>
-                      <td className="border p-1">{item.causa}</td>
-                      <td className="border p-1 text-right">{item.minutos}</td>
-                      <td className="border p-1 text-right">{item.porcentaje}%</td>
-                      <td className="border p-1 text-right">{item.porcentajeAcumulado}%</td>
-                      <td className="border p-1 text-center">
-                        {item.esPareto ? 
-                          <span className="text-green-600">✅ 80%</span> : 
-                          <span className="text-red-600">⬆️ 20%</span>
-                        }
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Tabla */}
-      <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
+      {/* Tabla principal - Scroll horizontal en móvil */}
+      <div className="overflow-x-auto max-h-[550px] overflow-y-auto border rounded">
         {loading ? (
           <div className="text-center py-8 text-gray-500">Cargando datos...</div>
         ) : parosFiltrados.length === 0 ? (
@@ -433,34 +251,34 @@ export default function Historial() {
             No hay registros que coincidan con los filtros
           </div>
         ) : (
-          <table className="min-w-max border text-sm">
+          <table className="w-full border text-[10px] sm:text-sm">
             <thead className="bg-gray-100 sticky top-0">
               <tr>
-                <th className="border p-2">Fecha</th>
-                <th className="border p-2">Máquina</th>
-                <th className="border p-2">Operador</th>
-                <th className="border p-2">Tipo</th>
-                <th className="border p-2">Origen</th>
-                <th className="border p-2">Min</th>
-                <th className="border p-2">Paro / Hecho</th>
-                <th className="border p-2">Causa</th>
-                <th className="border p-2">Acción</th>
-                <th className="border p-2">Comentario</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap">Fecha</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap">Máq.</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap hidden xs:table-cell">Operador</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap">Tipo</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap hidden sm:table-cell">Origen</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap">Min</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap hidden md:table-cell">Paro/Hecho</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap">Causa</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap hidden lg:table-cell">Acción</th>
+                <th className="border p-1 sm:p-2 whitespace-nowrap hidden xl:table-cell">Comentario</th>
               </tr>
             </thead>
             <tbody>
               {parosFiltrados.map((p, i) => (
                 <tr key={i} className="text-center hover:bg-gray-50">
-                  <td className="border p-2">{p.fecha}</td>
-                  <td className="border p-2">{p.maquina}</td>
-                  <td className="border p-2">{p.operador}</td>
-                  <td className="border p-2">{p.tipo}</td>
-                  <td className="border p-2">{p.origen || "-"}</td>
-                  <td className="border p-2">{p.minutos}</td>
-                  <td className="border p-2 font-semibold">{p.hecho}</td>
-                  <td className="border p-2">{p.causa}</td>
-                  <td className="border p-2">{p.accion}</td>
-                  <td className="border p-2">{p.comentario}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap">{p.fecha}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap">{p.maquina}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap hidden xs:table-cell">{p.operador}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap">{p.tipo}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap hidden sm:table-cell">{p.origen || "-"}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap">{p.minutos}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap hidden md:table-cell font-semibold">{p.hecho}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap">{p.causa}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap hidden lg:table-cell">{p.accion}</td>
+                  <td className="border p-1 sm:p-2 whitespace-nowrap hidden xl:table-cell">{p.comentario}</td>
                 </tr>
               ))}
             </tbody>
