@@ -8,7 +8,8 @@ const TIPOS_PARO = ["Planeado", "No Planeado", "Anomalía"];
 export default function Historial() {
   const [paros, setParos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [fechaFiltro, setFechaFiltro] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
   const [maquinaFiltro, setMaquinaFiltro] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("");
 
@@ -52,15 +53,20 @@ export default function Historial() {
     fetchData();
   }, []);
 
+  // Filtros con rango de fechas
   const parosFiltrados = useMemo(() => {
     return paros.filter((p) => {
+      const cumpleFecha = 
+        (!fechaInicio || p.fecha >= fechaInicio) &&
+        (!fechaFin || p.fecha <= fechaFin);
+      
       return (
-        (!fechaFiltro || p.fecha === fechaFiltro) &&
+        cumpleFecha &&
         (!maquinaFiltro || p.maquina === maquinaFiltro) &&
         (!tipoFiltro || p.tipo === tipoFiltro)
       );
     });
-  }, [paros, fechaFiltro, maquinaFiltro, tipoFiltro]);
+  }, [paros, fechaInicio, fechaFin, maquinaFiltro, tipoFiltro]);
 
   const maquinasUnicas = useMemo(() => 
     [...new Set(paros.map((p) => p.maquina))],
@@ -99,23 +105,55 @@ export default function Historial() {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 
-    const nombreArchivo = `Historial_Paros_${fechaFiltro || "todos"}.xlsx`;
+    // Nombre del archivo con el rango de fechas
+    let nombreArchivo = "Historial_Paros";
+    if (fechaInicio && fechaFin) {
+      nombreArchivo += `_${fechaInicio}_a_${fechaFin}`;
+    } else if (fechaInicio) {
+      nombreArchivo += `_desde_${fechaInicio}`;
+    } else if (fechaFin) {
+      nombreArchivo += `_hasta_${fechaFin}`;
+    }
+    nombreArchivo += ".xlsx";
+    
     saveAs(blob, nombreArchivo);
+  };
+
+  // Limpiar filtros
+  const limpiarFiltros = () => {
+    setFechaInicio("");
+    setFechaFin("");
+    setMaquinaFiltro("");
+    setTipoFiltro("");
   };
 
   return (
     <div className="p-4 bg-white shadow">
       <h2 className="text-xl font-bold mb-4">Historial de Paros</h2>
 
+      {/* Filtros */}
       <div className="flex flex-wrap gap-4 mb-4 items-end">
-        <input
-          type="date"
-          value={fechaFiltro}
-          onChange={(e) => setFechaFiltro(e.target.value)}
-          className="border p-2 rounded"
-          aria-label="Filtrar por fecha"
-        />
+        {/* Rango de fechas */}
+        <div className="flex gap-2 items-center">
+          <label className="text-sm font-medium">Desde:</label>
+          <input
+            type="date"
+            value={fechaInicio}
+            onChange={(e) => setFechaInicio(e.target.value)}
+            className="border p-2 rounded"
+            aria-label="Fecha inicio"
+          />
+          <label className="text-sm font-medium">Hasta:</label>
+          <input
+            type="date"
+            value={fechaFin}
+            onChange={(e) => setFechaFin(e.target.value)}
+            className="border p-2 rounded"
+            aria-label="Fecha fin"
+          />
+        </div>
 
+        {/* Filtro de máquina */}
         <select
           value={maquinaFiltro}
           onChange={(e) => setMaquinaFiltro(e.target.value)}
@@ -130,6 +168,7 @@ export default function Historial() {
           ))}
         </select>
 
+        {/* Filtro de tipo */}
         <select
           value={tipoFiltro}
           onChange={(e) => setTipoFiltro(e.target.value)}
@@ -144,12 +183,20 @@ export default function Historial() {
           ))}
         </select>
 
+        {/* Botones de acción */}
         <button
           onClick={fetchData}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           disabled={loading}
         >
           {loading ? "Cargando..." : "🔄 Refrescar"}
+        </button>
+
+        <button
+          onClick={limpiarFiltros}
+          className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+        >
+          🗑️ Limpiar filtros
         </button>
 
         <button
@@ -161,10 +208,19 @@ export default function Historial() {
         </button>
       </div>
 
-      <div className="mb-2 text-sm text-gray-600">
-        Mostrando {parosFiltrados.length} de {paros.length} registros
+      {/* Información de registros */}
+      <div className="mb-2 text-sm text-gray-600 flex justify-between">
+        <span>
+          Mostrando {parosFiltrados.length} de {paros.length} registros
+        </span>
+        {(fechaInicio || fechaFin) && (
+          <span className="text-blue-600">
+            Filtro: {fechaInicio || "Inicio"} → {fechaFin || "Fin"}
+          </span>
+        )}
       </div>
 
+      {/* Tabla */}
       <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
         {loading ? (
           <div className="text-center py-8 text-gray-500">Cargando datos...</div>
