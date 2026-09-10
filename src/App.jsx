@@ -46,7 +46,7 @@ export default function App() {
                 : 'bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200'
             }`}
           >
-            Captura
+            Tiempos
           </button>
           {auth && (
             <button
@@ -57,7 +57,7 @@ export default function App() {
                   : 'bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200'
               }`}
             >
-              Historial
+              Paros
             </button>
           )}
           {auth && (
@@ -69,7 +69,7 @@ export default function App() {
                   : 'bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200'
               }`}
             >
-              KPIs / OEE
+              Eficiencia
             </button>
           )}
         </nav>
