@@ -148,6 +148,10 @@ export default function KPIs() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // Estados de edición inline
+  const [editando, setEditando] = useState(null); // { id, inicio, fin }
+  const [guardando, setGuardando] = useState(false);
+
   /* ---------- Toast helper ---------- */
   const mostrarToast = (msg, tipo = "success") => {
     setToast({ msg, tipo });
@@ -174,7 +178,7 @@ export default function KPIs() {
     fetchData();
   }, [fetchData]);
 
-  /* ---------- Parseo de fechas (tal cual tu versión) ---------- */
+  /* ---------- Parseo de fechas ---------- */
   const parseFecha = (fechaStr) => {
     if (!fechaStr) return null;
     if (fechaStr.includes("/")) {
@@ -184,7 +188,7 @@ export default function KPIs() {
     return new Date(fechaStr);
   };
 
-  /* ---------- Catálogo en Map (performance, sin tocar cálculo) ---------- */
+  /* ---------- Catálogo en Map ---------- */
   const catalogoMap = useMemo(() => {
     const map = new Map();
     catalogo.forEach((m) => {
@@ -196,7 +200,7 @@ export default function KPIs() {
     return map;
   }, []);
 
-  /* ---------- Cálculo de OEE (IDÉNTICO a tu primera versión) ---------- */
+  /* ---------- Cálculo de OEE (sin clamps ni topes) ---------- */
   const calcularOEE = useCallback(
     (r) => {
       if (
@@ -243,9 +247,7 @@ export default function KPIs() {
 
       const disponibilidad = tiempoOperativo / tiempoProgramado;
       const desempeno =
-        tiempoOperativo > 0
-          ? Math.min(tiempoOperativoNeto / tiempoOperativo, 1)
-          : 0;
+        tiempoOperativo > 0 ? tiempoOperativoNeto / tiempoOperativo : 0;
       const calidad =
         tiempoOperativoNeto > 0 ? tiempoUtil / tiempoOperativoNeto : 0;
 
@@ -297,7 +299,7 @@ export default function KPIs() {
     [registrosFiltrados, calcularOEE]
   );
 
-  /* ---------- KPI ponderados (misma lógica que la tuya) ---------- */
+  /* ---------- KPI ponderados ---------- */
   const calcularPonderado = (numCampo, denCampo) => {
     let n = 0;
     let d = 0;
@@ -325,7 +327,7 @@ export default function KPIs() {
       ? disponibilidadPonderada * desempenoPonderado * calidadPonderada
       : null;
 
-  /* ---------- Totales para fila TOTAL (misma lógica que la tuya) ---------- */
+  /* ---------- Totales ---------- */
   const totales = useMemo(() => {
     return oeePorRegistro.reduce(
       (acc, { oee }) => ({
@@ -375,7 +377,54 @@ export default function KPIs() {
     setFechaFin(fin.toISOString().split("T")[0]);
   };
 
-  /* ---------- Export Excel (misma lógica que la tuya) ---------- */
+  /* ---------- Edición inline de inicio / fin ---------- */
+  const iniciarEdicion = (registro) => {
+    setEditando({
+      id: registro.id,
+      inicio: registro.inicio || "",
+      fin: registro.fin || "",
+    });
+  };
+
+  const cancelarEdicion = () => setEditando(null);
+
+  const guardarEdicion = async () => {
+    if (!editando) return;
+
+    if (!editando.inicio || !editando.fin) {
+      mostrarToast("Debes indicar hora inicio y hora fin", "warning");
+      return;
+    }
+
+    setGuardando(true);
+
+    const { error } = await supabase
+      .from(TABLA)
+      .update({ inicio: editando.inicio, fin: editando.fin })
+      .eq("id", editando.id);
+
+    setGuardando(false);
+
+    if (error) {
+      console.error("❌ Error al actualizar:", error.message);
+      mostrarToast("Error al guardar cambios", "error");
+      return;
+    }
+
+    // Actualiza estado local → recalcula OEE automáticamente
+    setRegistros((prev) =>
+      prev.map((r) =>
+        r.id === editando.id
+          ? { ...r, inicio: editando.inicio, fin: editando.fin }
+          : r
+      )
+    );
+
+    mostrarToast("✓ Tiempos actualizados", "success");
+    setEditando(null);
+  };
+
+  /* ---------- Export Excel ---------- */
   const exportarExcel = () => {
     const datosExport = oeePorRegistro.map(({ oee }) => ({
       Fecha: oee.fecha,
@@ -554,7 +603,7 @@ export default function KPIs() {
                     <Th>Fecha</Th>
                     <Th>Máquina</Th>
                     <Th>Proceso</Th>
-                    <Th>T. Prog.</Th>
+                    <Th>T. Prog. (✏️)</Th>
                     <Th>P. Plan.</Th>
                     <Th>P. No Plan.</Th>
                     <Th>P. Buenas</Th>
@@ -571,36 +620,103 @@ export default function KPIs() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {oeePorRegistro.map(({ registro, oee }, i) => (
-                    <tr
-                      key={registro._id || `${oee.fecha}-${oee.maquina}-${oee.proceso}-${i}`}
-                      className="text-center hover:bg-slate-50 transition-colors"
-                    >
-                      <Td>{oee.fecha}</Td>
-                      <Td>{oee.maquina}</Td>
-                      <Td>{oee.proceso}</Td>
-                      <Td>{f1(oee.tiempoProgramado)}</Td>
-                      <Td>{f1(oee.parosPlaneados)}</Td>
-                      <Td>{f1(oee.parosNoPlaneados)}</Td>
-                      <Td>{oee.piezasBuenas}</Td>
-                      <Td>{oee.piezasMalas}</Td>
-                      <Td>{f1(oee.tiempoOperativo)}</Td>
-                      <Td>{f1(oee.perdidaRitmo)}</Td>
-                      <Td>{f1(oee.tiempoOperativoNeto)}</Td>
-                      <Td>{f1(oee.perdidasCalidad)}</Td>
-                      <Td>{f1(oee.tiempoUtil)}</Td>
-                      <Td>{pct(oee.disponibilidad)}</Td>
-                      <Td>{pct(oee.desempeno)}</Td>
-                      <Td>{pct(oee.calidad)}</Td>
-                      <td
-                        className={`border-l border-slate-100 px-3 py-2 font-bold ${colorOEE(
-                          oee.oee
-                        )}`}
+                  {oeePorRegistro.map(({ registro, oee }, i) => {
+                    const estaEditando = editando?.id === registro.id;
+
+                    return (
+                      <tr
+                        key={
+                          registro.id ??
+                          `${oee.fecha}-${oee.maquina}-${oee.proceso}-${i}`
+                        }
+                        className="text-center hover:bg-slate-50 transition-colors"
                       >
-                        {pct(oee.oee)}
-                      </td>
-                    </tr>
-                  ))}
+                        <Td>{oee.fecha}</Td>
+                        <Td>{oee.maquina}</Td>
+                        <Td>{oee.proceso}</Td>
+
+                        {/* T. Prog. con edición inline de inicio/fin */}
+                        <Td>
+                          {estaEditando ? (
+                            <div className="flex flex-col gap-1 items-center">
+                              <input
+                                type="time"
+                                value={editando.inicio}
+                                onChange={(e) =>
+                                  setEditando((p) => ({
+                                    ...p,
+                                    inicio: e.target.value,
+                                  }))
+                                }
+                                className="w-24 rounded border border-indigo-300 px-1 py-0.5 text-xs"
+                              />
+                              <input
+                                type="time"
+                                value={editando.fin}
+                                onChange={(e) =>
+                                  setEditando((p) => ({
+                                    ...p,
+                                    fin: e.target.value,
+                                  }))
+                                }
+                                className="w-24 rounded border border-indigo-300 px-1 py-0.5 text-xs"
+                              />
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={guardarEdicion}
+                                  disabled={guardando}
+                                  className="text-[10px] px-2 py-0.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                >
+                                  {guardando ? "…" : "✓"}
+                                </button>
+                                <button
+                                  onClick={cancelarEdicion}
+                                  className="text-[10px] px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            f1(oee.tiempoProgramado)
+                          )}
+                        </Td>
+
+                        <Td>{f1(oee.parosPlaneados)}</Td>
+                        <Td>{f1(oee.parosNoPlaneados)}</Td>
+                        <Td>{oee.piezasBuenas}</Td>
+                        <Td>{oee.piezasMalas}</Td>
+                        <Td>{f1(oee.tiempoOperativo)}</Td>
+                        <Td>{f1(oee.perdidaRitmo)}</Td>
+                        <Td>{f1(oee.tiempoOperativoNeto)}</Td>
+                        <Td>{f1(oee.perdidasCalidad)}</Td>
+                        <Td>{f1(oee.tiempoUtil)}</Td>
+                        <Td>{pct(oee.disponibilidad)}</Td>
+                        <Td>{pct(oee.desempeno)}</Td>
+                        <Td>{pct(oee.calidad)}</Td>
+
+                        {/* OEE + botón editar */}
+                        <td
+                          className={`border-l border-slate-100 px-3 py-2 font-bold ${colorOEE(
+                            oee.oee
+                          )}`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <span>{pct(oee.oee)}</span>
+                            {!estaEditando && (
+                              <button
+                                onClick={() => iniciarEdicion(registro)}
+                                className="text-slate-300 hover:text-indigo-600 transition"
+                                title="Editar hora inicio / fin"
+                              >
+                                ✏️
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
 
                   {/* Fila TOTAL */}
                   <tr className="font-bold bg-slate-100 sticky bottom-0 border-t-2 border-slate-300">
