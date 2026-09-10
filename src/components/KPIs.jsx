@@ -9,7 +9,7 @@ import { saveAs } from "file-saver";
 ======================= */
 const TABLA = "registros";
 
-// Meta de OEE (fracción 0–1)
+// Meta de OEE (fracción 0-1)
 const META_OEE = 0.6557;
 
 // Umbrales relativos a la meta
@@ -31,26 +31,11 @@ const normalize = (txt) =>
 const f1 = (n) => Number(n || 0).toFixed(1);
 const pct = (n) => `${f1((n ?? 0) * 100)}%`;
 
-// Color de texto según valor OEE vs meta
 const colorOEE = (v) => {
   if (v == null) return "text-slate-400";
   if (v >= UMBRAL_VERDE) return "text-emerald-600";
   if (v >= UMBRAL_AMBAR) return "text-amber-600";
   return "text-rose-600";
-};
-
-const bgOEE = (v) => {
-  if (v == null) return "bg-slate-100 border-slate-200";
-  if (v >= UMBRAL_VERDE) return "bg-emerald-50 border-emerald-200";
-  if (v >= UMBRAL_AMBAR) return "bg-amber-50 border-amber-200";
-  return "bg-rose-50 border-rose-200";
-};
-
-const barOEE = (v) => {
-  if (v == null) return "bg-slate-300";
-  if (v >= UMBRAL_VERDE) return "bg-emerald-500";
-  if (v >= UMBRAL_AMBAR) return "bg-amber-500";
-  return "bg-rose-500";
 };
 
 /* =======================
@@ -59,17 +44,14 @@ const barOEE = (v) => {
 function VelocimetroOEE({ valor }) {
   const v = valor ?? 0;
 
-  // Ángulo total del arco: 220° (de -110° a +110°)
   const ANGULO_TOTAL = 220;
   const angulo = Math.min(Math.max(v, 0), 1) * ANGULO_TOTAL;
 
-  // Radio y centro
   const cx = 120;
   const cy = 120;
   const r = 90;
   const grosor = 16;
 
-  // Convierte ángulo (0 = centro arriba) a coordenadas SVG
   const polar = (deg) => {
     const rad = ((deg - 90 - 110) * Math.PI) / 180;
     return {
@@ -78,7 +60,6 @@ function VelocimetroOEE({ valor }) {
     };
   };
 
-  // Genera path de arco entre dos ángulos
   const arcPath = (start, end) => {
     const s = polar(start);
     const e = polar(end);
@@ -86,18 +67,15 @@ function VelocimetroOEE({ valor }) {
     return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
   };
 
-  // Posiciones de umbrales (relativos a la meta)
   const posVerde = UMBRAL_VERDE * ANGULO_TOTAL;
   const posAmbar = UMBRAL_AMBAR * ANGULO_TOTAL;
 
-  // Aguja
   const aguja = polar(angulo);
   const colorAguja = colorOEE(valor);
 
   return (
     <div className="relative flex flex-col items-center">
       <svg viewBox="0 0 240 170" className="w-full max-w-[220px]">
-        {/* Pista de fondo */}
         <path
           d={arcPath(0, ANGULO_TOTAL)}
           fill="none"
@@ -105,7 +83,6 @@ function VelocimetroOEE({ valor }) {
           strokeWidth={grosor}
           strokeLinecap="round"
         />
-        {/* Zona roja (0 → 92%) */}
         <path
           d={arcPath(0, posAmbar)}
           fill="none"
@@ -113,7 +90,6 @@ function VelocimetroOEE({ valor }) {
           strokeWidth={grosor}
           strokeLinecap="round"
         />
-        {/* Zona ámbar (92% → 99%) */}
         <path
           d={arcPath(posAmbar, posVerde)}
           fill="none"
@@ -121,7 +97,6 @@ function VelocimetroOEE({ valor }) {
           strokeWidth={grosor}
           strokeLinecap="butt"
         />
-        {/* Zona verde (99% → 100%) */}
         <path
           d={arcPath(posVerde, ANGULO_TOTAL)}
           fill="none"
@@ -130,7 +105,6 @@ function VelocimetroOEE({ valor }) {
           strokeLinecap="round"
         />
 
-        {/* Aguja */}
         <line
           x1={cx}
           y1={cy}
@@ -143,7 +117,6 @@ function VelocimetroOEE({ valor }) {
         <circle cx={cx} cy={cy} r="7" fill="#0f172a" />
         <circle cx={cx} cy={cy} r="3" fill="white" />
 
-        {/* Valor central */}
         <text
           x={cx}
           y={cy + 42}
@@ -173,6 +146,13 @@ export default function KPIs() {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  /* ---------- Toast helper ---------- */
+  const mostrarToast = (msg, tipo = "success") => {
+    setToast({ msg, tipo });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   /* ---------- Carga de datos ---------- */
   const fetchData = useCallback(async () => {
@@ -194,30 +174,29 @@ export default function KPIs() {
     fetchData();
   }, [fetchData]);
 
-  /* ---------- Catálogo en Map (performance) ---------- */
+  /* ---------- Parseo de fechas (tal cual tu versión) ---------- */
+  const parseFecha = (fechaStr) => {
+    if (!fechaStr) return null;
+    if (fechaStr.includes("/")) {
+      const [d, m, y] = fechaStr.split("/");
+      return new Date(`${y}-${m}-${d}`);
+    }
+    return new Date(fechaStr);
+  };
+
+  /* ---------- Catálogo en Map (performance, sin tocar cálculo) ---------- */
   const catalogoMap = useMemo(() => {
     const map = new Map();
     catalogo.forEach((m) => {
       const key = `${normalize(m.maquina)}|${normalize(m.proceso)}`;
-      map.set(key, Number(m.eph) || 1);
+      map.set(key, {
+        eph: Number(m.eph) || 1,
+      });
     });
     return map;
   }, []);
 
-  /* ---------- Parseo de fechas robusto ---------- */
-  const parseFecha = (fechaStr) => {
-    if (!fechaStr) return null;
-    let d;
-    if (typeof fechaStr === "string" && fechaStr.includes("/")) {
-      const [dd, mm, yyyy] = fechaStr.split("/");
-      d = new Date(`${yyyy}-${mm}-${dd}`);
-    } else {
-      d = new Date(fechaStr);
-    }
-    return isNaN(d.getTime()) ? null : d;
-  };
-
-  /* ---------- Cálculo de OEE por registro ---------- */
+  /* ---------- Cálculo de OEE (IDÉNTICO a tu primera versión) ---------- */
   const calcularOEE = useCallback(
     (r) => {
       if (
@@ -234,48 +213,41 @@ export default function KPIs() {
       const eph =
         catalogoMap.get(
           `${normalize(r.maquina)}|${normalize(r.proceso)}`
-        ) || 1;
+        )?.eph || 1;
 
       const inicio = new Date(`1970-01-01T${r.inicio}:00`);
       const fin = new Date(`1970-01-01T${r.fin}:00`);
       const tiempoProgramado = (fin - inicio) / 60000;
       if (tiempoProgramado <= 0) return null;
 
-      const parosPlaneados = (r.paros || [])
-        .filter((p) => p.tipo === "Planeado")
-        .reduce((a, b) => a + Number(b.minutos || 0), 0);
+      const parosPlaneados = r.paros
+        ? r.paros
+            .filter((p) => p.tipo === "Planeado")
+            .reduce((a, b) => a + Number(b.minutos || 0), 0)
+        : 0;
 
-      const parosNoPlaneados = (r.paros || [])
-        .filter((p) => p.tipo !== "Planeado")
-        .reduce((a, b) => a + Number(b.minutos || 0), 0);
+      const parosNoPlaneados = r.paros
+        ? r.paros
+            .filter((p) => p.tipo !== "Planeado")
+            .reduce((a, b) => a + Number(b.minutos || 0), 0)
+        : 0;
 
       const piezasMalas = r.piezastotales - r.piezasbuenas;
 
-      // Acotado para evitar valores absurdos
-      const tiempoOperativo = Math.max(
-        0,
-        tiempoProgramado - parosNoPlaneados - parosPlaneados
-      );
-      const tiempoOperativoNeto = Math.min(
-        r.piezastotales / eph,
-        tiempoOperativo
-      );
-      const perdidaRitmo = Math.max(0, tiempoOperativo - tiempoOperativoNeto);
+      const tiempoOperativo =
+        tiempoProgramado - parosNoPlaneados - parosPlaneados;
+      const tiempoOperativoNeto = r.piezastotales / eph;
+      const perdidaRitmo = tiempoOperativo - tiempoOperativoNeto;
       const perdidasCalidad = piezasMalas / eph;
-      const tiempoUtil = Math.max(0, tiempoOperativoNeto - perdidasCalidad);
+      const tiempoUtil = tiempoOperativoNeto - perdidasCalidad;
 
-      const disponibilidad = Math.min(
-        Math.max(tiempoOperativo / tiempoProgramado, 0),
-        1
-      );
+      const disponibilidad = tiempoOperativo / tiempoProgramado;
       const desempeno =
         tiempoOperativo > 0
           ? Math.min(tiempoOperativoNeto / tiempoOperativo, 1)
           : 0;
       const calidad =
-        tiempoOperativoNeto > 0
-          ? Math.min(tiempoUtil / tiempoOperativoNeto, 1)
-          : 0;
+        tiempoOperativoNeto > 0 ? tiempoUtil / tiempoOperativoNeto : 0;
 
       const oee = disponibilidad * desempeno * calidad;
 
@@ -309,7 +281,7 @@ export default function KPIs() {
 
     return registros.filter((r) => {
       const fechaRegistro = parseFecha(r.fecha);
-      if (!fechaRegistro) return false;
+      if (!fechaRegistro || isNaN(fechaRegistro.getTime())) return false;
       if (desde && fechaRegistro < desde) return false;
       if (hasta && fechaRegistro > hasta) return false;
       return true;
@@ -325,7 +297,7 @@ export default function KPIs() {
     [registrosFiltrados, calcularOEE]
   );
 
-  /* ---------- KPI ponderados ---------- */
+  /* ---------- KPI ponderados (misma lógica que la tuya) ---------- */
   const calcularPonderado = (numCampo, denCampo) => {
     let n = 0;
     let d = 0;
@@ -353,7 +325,7 @@ export default function KPIs() {
       ? disponibilidadPonderada * desempenoPonderado * calidadPonderada
       : null;
 
-  /* ---------- Totales para fila TOTAL ---------- */
+  /* ---------- Totales para fila TOTAL (misma lógica que la tuya) ---------- */
   const totales = useMemo(() => {
     return oeePorRegistro.reduce(
       (acc, { oee }) => ({
@@ -403,7 +375,7 @@ export default function KPIs() {
     setFechaFin(fin.toISOString().split("T")[0]);
   };
 
-  /* ---------- Export Excel ---------- */
+  /* ---------- Export Excel (misma lógica que la tuya) ---------- */
   const exportarExcel = () => {
     const datosExport = oeePorRegistro.map(({ oee }) => ({
       Fecha: oee.fecha,
@@ -432,6 +404,7 @@ export default function KPIs() {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     saveAs(blob, `OEE_${fecha}.xlsx`);
+    mostrarToast("✓ Excel exportado", "success");
   };
 
   /* =======================
@@ -440,32 +413,34 @@ export default function KPIs() {
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4">
       <div className="max-w-7xl mx-auto">
-        {/* ---------- HEADER ---------- */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3 shadow-sm mb-4">
-          <div className="flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full bg-indigo-500" />
-            <h2 className="text-base font-semibold text-slate-800 tracking-tight">
-              KPIs y OEE
-            </h2>
-            <span className="text-xs text-slate-400">
-              {oeePorRegistro.length} registro(s)
-            </span>
-          </div>
+        {/* ---------- HEADER STICKY ---------- */}
+        <div className="sticky top-0 z-10 -mx-4 px-4 pb-3 bg-slate-50/80 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="h-2 w-2 rounded-full bg-indigo-500" />
+              <h2 className="text-base font-semibold text-slate-800 tracking-tight">
+                KPIs y OEE
+              </h2>
+              <span className="text-xs text-slate-400">
+                {oeePorRegistro.length} registro(s)
+              </span>
+            </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="text-sm font-medium px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition disabled:opacity-60"
-            >
-              {loading ? "Cargando…" : "🔄 Refrescar"}
-            </button>
-            <button
-              onClick={exportarExcel}
-              className="text-sm font-medium px-4 py-2 rounded-lg bg-slate-900 text-white shadow-sm hover:bg-slate-800 transition"
-            >
-              📤 Exportar ({oeePorRegistro.length})
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="text-sm font-medium px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition disabled:opacity-60"
+              >
+                {loading ? "Cargando…" : "🔄 Refrescar"}
+              </button>
+              <button
+                onClick={exportarExcel}
+                className="text-sm font-medium px-4 py-2 rounded-lg bg-slate-900 text-white shadow-sm hover:bg-slate-800 transition"
+              >
+                📤 Exportar ({oeePorRegistro.length})
+              </button>
+            </div>
           </div>
         </div>
 
@@ -491,7 +466,11 @@ export default function KPIs() {
               value={desempenoPonderado}
               color="sky"
             />
-            <KpiCard label="Calidad" value={calidadPonderada} color="violet" />
+            <KpiCard
+              label="Calidad"
+              value={calidadPonderada}
+              color="violet"
+            />
           </div>
         </div>
 
@@ -594,7 +573,7 @@ export default function KPIs() {
                 <tbody className="divide-y divide-slate-100">
                   {oeePorRegistro.map(({ registro, oee }, i) => (
                     <tr
-                      key={registro._id || `${oee.fecha}-${i}`}
+                      key={registro._id || `${oee.fecha}-${oee.maquina}-${oee.proceso}-${i}`}
                       className="text-center hover:bg-slate-50 transition-colors"
                     >
                       <Td>{oee.fecha}</Td>
@@ -656,6 +635,21 @@ export default function KPIs() {
           )}
         </div>
       </div>
+
+      {/* ---------- TOAST ---------- */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-lg px-4 py-2 text-sm shadow-lg border ${
+            toast.tipo === "warning"
+              ? "bg-amber-100 text-amber-800 border-amber-200"
+              : toast.tipo === "error"
+              ? "bg-rose-100 text-rose-800 border-rose-200"
+              : "bg-emerald-100 text-emerald-800 border-emerald-200"
+          }`}
+        >
+          {toast.msg}
+        </div>
+      )}
     </div>
   );
 }
