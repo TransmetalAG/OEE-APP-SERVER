@@ -44,8 +44,8 @@ const calcularRango = (tipo) => {
     }
 
     case "semana": {
-      const dia = hoy.getDay(); // 0 = domingo
-      const diff = dia === 0 ? 6 : dia - 1; // lunes como inicio
+      const dia = hoy.getDay();
+      const diff = dia === 0 ? 6 : dia - 1;
       const lunes = new Date(y, m, d - diff);
       const domingo = new Date(y, m, d - diff + 6);
       return { inicio: fmt(lunes), fin: fmt(domingo) };
@@ -138,17 +138,31 @@ export default function Historial() {
     });
   }, [paros, fechaInicio, fechaFin, maquinaFiltro, tipoFiltro]);
 
+  // 📊 Pareto agrupado por HECHO (el paro del catálogo)
   const datosPareto = useMemo(() => {
     const agrupado = parosFiltrados.reduce((acc, p) => {
-      const key = p.causa || "Sin causa";
-      acc[key] = (acc[key] || 0) + p.minutos;
+      const hecho = p.hecho || "Sin hecho";
+      const maquina = p.maquina || "Sin máquina";
+      const causa = p.causa || "Sin causa";
+
+      if (!acc[hecho]) {
+        acc[hecho] = {
+          hecho,
+          minutos: 0,
+          porMaquina: {},
+          causasAsociadas: {},
+        };
+      }
+      acc[hecho].minutos += p.minutos || 0;
+      acc[hecho].porMaquina[maquina] =
+        (acc[hecho].porMaquina[maquina] || 0) + (p.minutos || 0);
+      acc[hecho].causasAsociadas[causa] =
+        (acc[hecho].causasAsociadas[causa] || 0) + (p.minutos || 0);
+
       return acc;
     }, {});
 
-    const sorted = Object.entries(agrupado)
-      .map(([causa, minutos]) => ({ causa, minutos }))
-      .sort((a, b) => b.minutos - a.minutos);
-
+    const sorted = Object.values(agrupado).sort((a, b) => b.minutos - a.minutos);
     const total = sorted.reduce((sum, item) => sum + item.minutos, 0);
     let acumulado = 0;
 
@@ -156,11 +170,26 @@ export default function Historial() {
       acumulado += item.minutos;
       const porcentaje = (item.minutos / total) * 100;
       const porcentajeAcumulado = (acumulado / total) * 100;
+
+      const maquinasTexto = Object.entries(item.porMaquina)
+        .sort((a, b) => b[1] - a[1])
+        .map(([maq, min]) => `${maq} (${min})`)
+        .join(", ");
+
+      const causasTexto = Object.entries(item.causasAsociadas)
+        .sort((a, b) => b[1] - a[1])
+        .map(([c, min]) => `${c} (${min})`)
+        .join(", ");
+
       return {
-        ...item,
+        hecho: item.hecho,
+        minutos: item.minutos,
         porcentaje: Math.round(porcentaje * 100) / 100,
         porcentajeAcumulado: Math.round(porcentajeAcumulado * 100) / 100,
         esPareto: porcentajeAcumulado <= 80,
+        maquinasTexto,
+        causasTexto,
+        porMaquina: item.porMaquina,
       };
     });
   }, [parosFiltrados]);
@@ -436,7 +465,7 @@ export default function Historial() {
         )}
       </div>
 
-      {/* 🚨 Alerta por día: uno o más días superaron el umbral */}
+      {/* 🚨 Alerta por día */}
       {alertasPorDia.activa && (
         <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-600 rounded shadow-sm">
           <div className="flex items-center gap-3 mb-2">
@@ -543,7 +572,7 @@ export default function Historial() {
       {/* Pareto */}
       {mostrarPareto && datosPareto.length > 0 && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-          <h3 className="text-lg font-bold mb-2">📊 Análisis de Pareto - Causas de Paros</h3>
+          <h3 className="text-lg font-bold mb-2">📊 Análisis de Pareto - Tipos de Paro</h3>
 
           {estadisticasPareto && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -557,11 +586,11 @@ export default function Historial() {
                 </div>
               </div>
               <div className="bg-white p-3 rounded shadow">
-                <div className="text-sm text-gray-600">Causas totales</div>
+                <div className="text-sm text-gray-600">Tipos de paro</div>
                 <div className="text-xl font-bold">{estadisticasPareto.totalCausas}</div>
               </div>
               <div className="bg-white p-3 rounded shadow">
-                <div className="text-sm text-gray-600">Causas que generan el 80%</div>
+                <div className="text-sm text-gray-600">Tipos que generan el 80%</div>
                 <div className="text-xl font-bold text-green-600">{estadisticasPareto.causas80}</div>
               </div>
               <div className="bg-white p-3 rounded shadow">
@@ -575,13 +604,17 @@ export default function Historial() {
             <ComposedChart data={datosPareto}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
-                dataKey="causa"
+                dataKey="hecho"
                 angle={-45}
                 textAnchor="end"
-                height={80}
+                height={100}
                 interval={0}
               />
-              <YAxis yAxisId="left" label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }} />
+              <YAxis
+                yAxisId="left"
+                domain={[0, 'auto']}
+                label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }}
+              />
               <YAxis
                 yAxisId="right"
                 orientation="right"
@@ -589,12 +622,24 @@ export default function Historial() {
                 domain={[0, 100]}
               />
               <Tooltip
-                formatter={(value, name) => {
-                  if (name === 'porcentajeAcumulado') return `${value}%`;
-                  if (name === 'porcentaje') return `${value}%`;
-                  return value;
+                content={({ active, payload }) => {
+                  if (!active || !payload || !payload.length) return null;
+                  const item = payload[0].payload;
+                  return (
+                    <div className="bg-white border border-gray-200 rounded shadow p-2 text-xs max-w-xs">
+                      <div className="font-bold mb-1">{item.hecho}</div>
+                      <div className="mb-1">
+                        <span className="font-semibold">Total:</span> {item.minutos} min
+                      </div>
+                      <div className="mb-1">
+                        <span className="font-semibold">Máquinas:</span> {item.maquinasTexto}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Causas:</span> {item.causasTexto}
+                      </div>
+                    </div>
+                  );
                 }}
-                labelFormatter={(label) => `Causa: ${label}`}
               />
               <Legend />
               <Bar yAxisId="left" dataKey="minutos" fill="#8884d8" name="Minutos">
@@ -619,11 +664,11 @@ export default function Historial() {
           <div className="flex gap-4 mt-2 justify-center">
             <div className="flex items-center gap-1">
               <div className="w-4 h-4 bg-green-500 rounded"></div>
-              <span className="text-sm">Causas que representan el 80%</span>
+              <span className="text-sm">Tipos que representan el 80%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-4 h-4 bg-red-500 rounded"></div>
-              <span className="text-sm">Causas que representan el 20%</span>
+              <span className="text-sm">Tipos que representan el 20%</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-4 h-1 bg-orange-500"></div>
@@ -632,16 +677,18 @@ export default function Historial() {
           </div>
 
           <div className="mt-4">
-            <h4 className="font-semibold mb-2">Detalle de causas:</h4>
-            <div className="overflow-x-auto max-h-40 overflow-y-auto">
+            <h4 className="font-semibold mb-2">Detalle por tipo de paro:</h4>
+            <div className="overflow-x-auto max-h-60 overflow-y-auto">
               <table className="w-full text-sm border">
                 <thead className="bg-gray-100 sticky top-0">
                   <tr>
                     <th className="border p-1 text-left">#</th>
-                    <th className="border p-1 text-left">Causa</th>
+                    <th className="border p-1 text-left">Paro (hecho)</th>
+                    <th className="border p-1 text-left">Máquinas</th>
+                    <th className="border p-1 text-left">Causas asociadas</th>
                     <th className="border p-1 text-right">Minutos</th>
                     <th className="border p-1 text-right">%</th>
-                    <th className="border p-1 text-right">% Acumulado</th>
+                    <th className="border p-1 text-right">% Acum</th>
                     <th className="border p-1 text-center">Estado</th>
                   </tr>
                 </thead>
@@ -649,7 +696,9 @@ export default function Historial() {
                   {datosPareto.map((item, index) => (
                     <tr key={index} className={item.esPareto ? 'bg-green-50' : 'bg-red-50'}>
                       <td className="border p-1 text-center">{index + 1}</td>
-                      <td className="border p-1">{item.causa}</td>
+                      <td className="border p-1 font-medium">{item.hecho}</td>
+                      <td className="border p-1 text-xs text-gray-700">{item.maquinasTexto}</td>
+                      <td className="border p-1 text-xs text-gray-700">{item.causasTexto}</td>
                       <td className="border p-1 text-right">{item.minutos}</td>
                       <td className="border p-1 text-right">{item.porcentaje}%</td>
                       <td className="border p-1 text-right">{item.porcentajeAcumulado}%</td>
