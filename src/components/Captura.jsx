@@ -36,7 +36,6 @@ const FORM_INICIAL = () => ({
   proceso: "",
   inicio: "",
   fin: "",
-  carretas: "",
   piezastotales: "",
   piezasbuenas: "",
   paros: [],
@@ -96,11 +95,13 @@ function Field({ label, error, children, full }) {
 
 function Toast({ toast }) {
   if (!toast) return null;
+
   const tones = {
     success: "bg-emerald-50 text-emerald-800 border-emerald-200",
     warning: "bg-amber-50 text-amber-800 border-amber-200",
     error: "bg-rose-50 text-rose-800 border-rose-200",
   };
+
   return (
     <div
       className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-lg px-4 py-2 text-sm shadow-lg border ${
@@ -128,6 +129,7 @@ function ParoForm({ paro, maquina, index, onChange, onRemove, error }) {
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
             Paro #{index + 1}
           </span>
+
           {paro.tipo && (
             <span
               className={`text-xs px-2 py-0.5 rounded-full border ${badgeTone(
@@ -138,6 +140,7 @@ function ParoForm({ paro, maquina, index, onChange, onRemove, error }) {
             </span>
           )}
         </div>
+
         <button
           type="button"
           onClick={onRemove}
@@ -219,6 +222,7 @@ function ParoForm({ paro, maquina, index, onChange, onRemove, error }) {
                 className={inputCls()}
               />
             </Field>
+
             <Field label="Acción">
               <input
                 value={paro.accion}
@@ -251,7 +255,9 @@ function ParoForm({ paro, maquina, index, onChange, onRemove, error }) {
         </Field>
       </div>
 
-      {error && <p className="text-xs text-rose-600 mt-3">⚠ {error}</p>}
+      {error && (
+        <p className="text-xs text-rose-600 mt-3">⚠ {error}</p>
+      )}
     </div>
   );
 }
@@ -269,7 +275,6 @@ function validarRegistro(form) {
   if (!form.proceso) e.proceso = "Requerido";
   if (!form.inicio) e.inicio = "Requerido";
   if (!form.fin) e.fin = "Requerido";
-  if (!form.carretas) e.carretas = "Requerido";
   if (!form.piezastotales) e.piezastotales = "Requerido";
   if (!form.piezasbuenas) e.piezasbuenas = "Requerido";
 
@@ -287,10 +292,16 @@ function validarRegistro(form) {
 
   form.paros.forEach((p, i) => {
     const pref = `paro_${i}`;
+
     if (!p.tipo) return (e[pref] = "Selecciona tipo");
-    if (!p.minutos || Number(p.minutos) <= 0)
+
+    if (!p.minutos || Number(p.minutos) <= 0) {
       return (e[pref] = "Minutos inválidos");
-    if (!p.comentario) return (e[pref] = "Comentario requerido");
+    }
+
+    if (!p.comentario) {
+      return (e[pref] = "Comentario requerido");
+    }
 
     if (p.tipo === TIPOS_PARO.NO_PLANEADO) {
       if (!p.origen) return (e[pref] = "Origen requerido");
@@ -330,8 +341,11 @@ export default function Captura() {
         setPendientes([]);
       }
     };
+
     leer();
+
     window.addEventListener("storage", leer);
+
     return () => window.removeEventListener("storage", leer);
   }, []);
 
@@ -355,38 +369,84 @@ export default function Captura() {
   /* ---------- Handlers generales ---------- */
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
-    setErrores((er) => ({ ...er, [name]: undefined }));
+
+    setForm((f) => ({
+      ...f,
+      [name]: value,
+    }));
+
+    setErrores((er) => ({
+      ...er,
+      [name]: undefined,
+    }));
   };
 
   const handleCodigo = (e) => {
     const codigo = e.target.value.trim();
     const op = operadores.find((o) => String(o.codigo) === codigo);
-    setForm((f) => ({ ...f, codigo, nombre: op ? op.nombre : "" }));
-    setErrores((er) => ({ ...er, codigo: undefined }));
+
+    setForm((f) => ({
+      ...f,
+      codigo,
+      nombre: op ? op.nombre : "",
+    }));
+
+    setErrores((er) => ({
+      ...er,
+      codigo: undefined,
+    }));
   };
 
   const handleMaquina = (e) => {
     const maquina = e.target.value;
-    setForm((f) => ({ ...f, maquina, proceso: "", paros: [] }));
-    setErrores((er) => ({ ...er, maquina: undefined, proceso: undefined }));
+
+    setForm((f) => ({
+      ...f,
+      maquina,
+      proceso: "",
+      paros: [],
+    }));
+
+    setErrores((er) => ({
+      ...er,
+      maquina: undefined,
+      proceso: undefined,
+    }));
   };
 
   /* ---------- Paros ---------- */
   const agregarParo = () =>
-    setForm((f) => ({ ...f, paros: [...f.paros, { ...PARO_VACIO }] }));
+    setForm((f) => ({
+      ...f,
+      paros: [...f.paros, { ...PARO_VACIO }],
+    }));
 
   const editarParo = (i, campo, valor) => {
     setForm((f) => {
       const paros = [...f.paros];
+
       if (campo === "tipo") {
-        paros[i] = { ...PARO_VACIO, tipo: valor };
+        paros[i] = {
+          ...PARO_VACIO,
+          tipo: valor,
+        };
       } else if (campo === "origen") {
-        paros[i] = { ...PARO_VACIO, tipo: paros[i].tipo, origen: valor };
+        paros[i] = {
+          ...PARO_VACIO,
+          tipo: paros[i].tipo,
+          origen: valor,
+        };
       } else {
-        paros[i] = { ...paros[i], [campo]: valor };
+        paros[i] = {
+          ...paros[i],
+          [campo]: valor,
+        };
       }
-      return { ...f, paros };
+
+      return {
+        ...f,
+        paros,
+      };
     });
 
     setErrores((er) => {
@@ -405,6 +465,7 @@ export default function Captura() {
   /* ---------- Guardar ---------- */
   const guardar = async () => {
     const errs = validarRegistro(form);
+
     if (Object.keys(errs).length) {
       setErrores(errs);
       mostrarToast("Revisa los campos marcados en rojo", "error");
@@ -415,25 +476,40 @@ export default function Captura() {
 
     const registro = {
       ...form,
-      carretas: Number(form.carretas),
       piezastotales: Number(form.piezastotales),
       piezasbuenas: Number(form.piezasbuenas),
-      paros: form.paros.map((p) => ({ ...p, minutos: Number(p.minutos) })),
+      paros: form.paros.map((p) => ({
+        ...p,
+        minutos: Number(p.minutos),
+      })),
       _id: crypto.randomUUID(),
     };
 
     try {
       const { _id, ...payload } = registro;
-      const { error } = await supabase.from(TABLA).insert([payload]);
+
+      const { error } = await supabase
+        .from(TABLA)
+        .insert([payload]);
+
       if (error) throw error;
 
       mostrarToast("✓ Registro guardado correctamente", "success");
     } catch (err) {
       console.error("Error guardando en Supabase:", err);
-      const cola = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
+      const cola =
+        JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+
       cola.push(registro);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cola));
+
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(cola)
+      );
+
       setPendientes(cola);
+
       mostrarToast(
         "📦 Guardado localmente, se sincronizará cuando haya conexión",
         "warning"
@@ -450,22 +526,43 @@ export default function Captura() {
     if (!pendientes.length) return;
 
     setSincronizando(true);
+
     const restantes = [];
     let ok = 0;
 
     for (const reg of pendientes) {
       const { _id, ...payload } = reg;
-      const { error } = await supabase.from(TABLA).insert([payload]);
-      if (error) restantes.push(reg);
-      else ok++;
+
+      const { error } = await supabase
+        .from(TABLA)
+        .insert([payload]);
+
+      if (error) {
+        restantes.push(reg);
+      } else {
+        ok++;
+      }
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(restantes));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(restantes)
+    );
+
     setPendientes(restantes);
     setSincronizando(false);
 
-    if (ok > 0) mostrarToast(`✓ ${ok} registro(s) sincronizado(s)`, "success");
-    else mostrarToast("No se pudo sincronizar ningún registro", "error");
+    if (ok > 0) {
+      mostrarToast(
+        `✓ ${ok} registro(s) sincronizado(s)`,
+        "success"
+      );
+    } else {
+      mostrarToast(
+        "No se pudo sincronizar ningún registro",
+        "error"
+      );
+    }
   };
 
   /* =======================
@@ -474,11 +571,13 @@ export default function Captura() {
   return (
     <div className="min-h-screen bg-slate-50 flex justify-center py-6 px-4">
       <div className="w-full max-w-3xl">
+
         {/* HEADER STICKY */}
         <div className="sticky top-0 z-10 -mx-4 px-4 pb-3 bg-slate-50/80 backdrop-blur">
           <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+
               <h2 className="text-base font-semibold text-slate-800 tracking-tight">
                 Registro de Producción
               </h2>
@@ -500,9 +599,11 @@ export default function Captura() {
 
         {/* CARD PRINCIPAL */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+
           {/* === DATOS GENERALES === */}
           <Section title="Datos generales">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
               <Field label="Fecha" error={errores.fecha}>
                 <input
                   type="date"
@@ -513,7 +614,10 @@ export default function Captura() {
                 />
               </Field>
 
-              <Field label="Código operador" error={errores.codigo}>
+              <Field
+                label="Código operador"
+                error={errores.codigo}
+              >
                 <input
                   value={form.codigo}
                   onChange={handleCodigo}
@@ -531,13 +635,19 @@ export default function Captura() {
                 />
               </Field>
 
-              <Field label="Máquina" error={errores.maquina}>
+              <Field
+                label="Máquina"
+                error={errores.maquina}
+              >
                 <select
                   value={form.maquina}
                   onChange={handleMaquina}
                   className={inputCls(errores.maquina)}
                 >
-                  <option value="">Selecciona...</option>
+                  <option value="">
+                    Selecciona...
+                  </option>
+
                   {maquinas.map((m) => (
                     <option key={m} value={m}>
                       {m}
@@ -546,24 +656,38 @@ export default function Captura() {
                 </select>
               </Field>
 
-              <Field label="Proceso" error={errores.proceso}>
+              <Field
+                label="Proceso"
+                error={errores.proceso}
+              >
                 <select
                   name="proceso"
                   value={form.proceso}
                   onChange={handleChange}
                   disabled={!form.maquina}
-                  className={`${inputCls(errores.proceso)} disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${inputCls(
+                    errores.proceso
+                  )} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  <option value="">Selecciona...</option>
+                  <option value="">
+                    Selecciona...
+                  </option>
+
                   {procesosDeMaquina.map((m) => (
-                    <option key={m.proceso} value={m.proceso}>
+                    <option
+                      key={m.proceso}
+                      value={m.proceso}
+                    >
                       {m.proceso}
                     </option>
                   ))}
                 </select>
               </Field>
 
-              <Field label="Hora inicio" error={errores.inicio}>
+              <Field
+                label="Hora inicio"
+                error={errores.inicio}
+              >
                 <input
                   type="time"
                   name="inicio"
@@ -573,7 +697,10 @@ export default function Captura() {
                 />
               </Field>
 
-              <Field label="Hora fin" error={errores.fin}>
+              <Field
+                label="Hora fin"
+                error={errores.fin}
+              >
                 <input
                   type="time"
                   name="fin"
@@ -582,25 +709,18 @@ export default function Captura() {
                   className={inputCls(errores.fin)}
                 />
               </Field>
+
             </div>
           </Section>
 
           {/* === PRODUCCIÓN === */}
           <Section title="Producción">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Field label="Carretas" error={errores.carretas}>
-                <input
-                  type="number"
-                  min="0"
-                  name="carretas"
-                  value={form.carretas}
-                  onChange={handleChange}
-                  placeholder="0"
-                  className={inputCls(errores.carretas)}
-                />
-              </Field>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <Field label="Piezas totales" error={errores.piezastotales}>
+              <Field
+                label="Piezas totales"
+                error={errores.piezastotales}
+              >
                 <input
                   type="number"
                   min="0"
@@ -608,11 +728,16 @@ export default function Captura() {
                   value={form.piezastotales}
                   onChange={handleChange}
                   placeholder="0"
-                  className={inputCls(errores.piezastotales)}
+                  className={inputCls(
+                    errores.piezastotales
+                  )}
                 />
               </Field>
 
-              <Field label="Piezas buenas" error={errores.piezasbuenas}>
+              <Field
+                label="Piezas buenas"
+                error={errores.piezasbuenas}
+              >
                 <input
                   type="number"
                   min="0"
@@ -620,9 +745,12 @@ export default function Captura() {
                   value={form.piezasbuenas}
                   onChange={handleChange}
                   placeholder="0"
-                  className={inputCls(errores.piezasbuenas)}
+                  className={inputCls(
+                    errores.piezasbuenas
+                  )}
                 />
               </Field>
+
             </div>
           </Section>
 
@@ -652,13 +780,18 @@ export default function Captura() {
                     paro={p}
                     maquina={form.maquina}
                     error={errores[`paro_${i}`]}
-                    onChange={(campo, valor) => editarParo(i, campo, valor)}
-                    onRemove={() => eliminarParo(i)}
+                    onChange={(campo, valor) =>
+                      editarParo(i, campo, valor)
+                    }
+                    onRemove={() =>
+                      eliminarParo(i)
+                    }
                   />
                 ))}
               </div>
             )}
           </Section>
+
         </div>
 
         {/* BOTÓN GUARDAR STICKY */}
@@ -668,9 +801,12 @@ export default function Captura() {
             disabled={enviando}
             className="w-full rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {enviando ? "Guardando…" : "Guardar registro"}
+            {enviando
+              ? "Guardando…"
+              : "Guardar registro"}
           </button>
         </div>
+
       </div>
 
       <Toast toast={toast} />
