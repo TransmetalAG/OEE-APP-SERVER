@@ -21,5 +21,6 @@ export const operadores = [
   { codigo: "10004938", nombre: "SUQUE REYES ERIK SANTIAGO" },
   { codigo: "10005067", nombre: "PIMENTEL GUTIERREZ KENDEL SAMUEL" },
   { codigo: "10004865", nombre: "HERNANDES SANCHEZ ABNER JOSUE" },
+  { codigo: "10005579", nombre: "OSOY NATARENO KEVIN JOSUE" },
   
 ];
