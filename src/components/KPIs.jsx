@@ -148,7 +148,7 @@ export default function KPIs() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
-  // Estados de edición inline
+  // Estados de edición inline (inicio / fin)
   const [editando, setEditando] = useState(null); // { id, inicio, fin }
   const [guardando, setGuardando] = useState(false);
 
@@ -257,6 +257,8 @@ export default function KPIs() {
         fecha: r.fecha,
         maquina: r.maquina,
         proceso: r.proceso,
+        inicio: r.inicio,
+        fin: r.fin,
         tiempoProgramado,
         parosPlaneados,
         parosNoPlaneados,
@@ -430,6 +432,8 @@ export default function KPIs() {
       Fecha: oee.fecha,
       Máquina: oee.maquina,
       Proceso: oee.proceso,
+      Inicio: oee.inicio,
+      Fin: oee.fin,
       "Tiempo Programado (min)": oee.tiempoProgramado.toFixed(1),
       "Paros Planeados (min)": oee.parosPlaneados,
       "Paros No Planeados (min)": oee.parosNoPlaneados,
@@ -495,7 +499,6 @@ export default function KPIs() {
 
         {/* ---------- KPI CARDS + VELOCÍMETRO ---------- */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-          {/* Velocímetro OEE */}
           <div className="lg:col-span-1 rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col items-center justify-center">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 self-start">
               OEE Global
@@ -503,7 +506,6 @@ export default function KPIs() {
             <VelocimetroOEE valor={oeePonderado} />
           </div>
 
-          {/* Otros 3 KPIs */}
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <KpiCard
               label="Disponibilidad"
@@ -603,7 +605,9 @@ export default function KPIs() {
                     <Th>Fecha</Th>
                     <Th>Máquina</Th>
                     <Th>Proceso</Th>
-                    <Th>T. Prog. (✏️)</Th>
+                    <Th>Inicio</Th>
+                    <Th>Fin</Th>
+                    <Th>T. Prog.</Th>
                     <Th>P. Plan.</Th>
                     <Th>P. No Plan.</Th>
                     <Th>P. Buenas</Th>
@@ -635,53 +639,45 @@ export default function KPIs() {
                         <Td>{oee.maquina}</Td>
                         <Td>{oee.proceso}</Td>
 
-                        {/* T. Prog. con edición inline de inicio/fin */}
+                        {/* Hora Inicio → editable */}
                         <Td>
                           {estaEditando ? (
-                            <div className="flex flex-col gap-1 items-center">
-                              <input
-                                type="time"
-                                value={editando.inicio}
-                                onChange={(e) =>
-                                  setEditando((p) => ({
-                                    ...p,
-                                    inicio: e.target.value,
-                                  }))
-                                }
-                                className="w-24 rounded border border-indigo-300 px-1 py-0.5 text-xs"
-                              />
-                              <input
-                                type="time"
-                                value={editando.fin}
-                                onChange={(e) =>
-                                  setEditando((p) => ({
-                                    ...p,
-                                    fin: e.target.value,
-                                  }))
-                                }
-                                className="w-24 rounded border border-indigo-300 px-1 py-0.5 text-xs"
-                              />
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={guardarEdicion}
-                                  disabled={guardando}
-                                  className="text-[10px] px-2 py-0.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-                                >
-                                  {guardando ? "…" : "✓"}
-                                </button>
-                                <button
-                                  onClick={cancelarEdicion}
-                                  className="text-[10px] px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
+                            <input
+                              type="time"
+                              value={editando.inicio}
+                              onChange={(e) =>
+                                setEditando((p) => ({
+                                  ...p,
+                                  inicio: e.target.value,
+                                }))
+                              }
+                              className="w-24 rounded border border-indigo-300 px-1 py-0.5 text-xs"
+                            />
                           ) : (
-                            f1(oee.tiempoProgramado)
+                            registro.inicio || "—"
                           )}
                         </Td>
 
+                        {/* Hora Fin → editable */}
+                        <Td>
+                          {estaEditando ? (
+                            <input
+                              type="time"
+                              value={editando.fin}
+                              onChange={(e) =>
+                                setEditando((p) => ({
+                                  ...p,
+                                  fin: e.target.value,
+                                }))
+                              }
+                              className="w-24 rounded border border-indigo-300 px-1 py-0.5 text-xs"
+                            />
+                          ) : (
+                            registro.fin || "—"
+                          )}
+                        </Td>
+
+                        <Td>{f1(oee.tiempoProgramado)}</Td>
                         <Td>{f1(oee.parosPlaneados)}</Td>
                         <Td>{f1(oee.parosNoPlaneados)}</Td>
                         <Td>{oee.piezasBuenas}</Td>
@@ -695,7 +691,7 @@ export default function KPIs() {
                         <Td>{pct(oee.desempeno)}</Td>
                         <Td>{pct(oee.calidad)}</Td>
 
-                        {/* OEE + botón editar */}
+                        {/* OEE + botones editar / guardar / cancelar */}
                         <td
                           className={`border-l border-slate-100 px-3 py-2 font-bold ${colorOEE(
                             oee.oee
@@ -703,7 +699,8 @@ export default function KPIs() {
                         >
                           <div className="flex items-center justify-center gap-2">
                             <span>{pct(oee.oee)}</span>
-                            {!estaEditando && (
+
+                            {!estaEditando ? (
                               <button
                                 onClick={() => iniciarEdicion(registro)}
                                 className="text-slate-300 hover:text-indigo-600 transition"
@@ -711,6 +708,24 @@ export default function KPIs() {
                               >
                                 ✏️
                               </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={guardarEdicion}
+                                  disabled={guardando}
+                                  className="text-[10px] px-2 py-0.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                  title="Guardar"
+                                >
+                                  {guardando ? "…" : "✓"}
+                                </button>
+                                <button
+                                  onClick={cancelarEdicion}
+                                  className="text-[10px] px-2 py-0.5 rounded bg-slate-200 hover:bg-slate-300"
+                                  title="Cancelar"
+                                >
+                                  ✕
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -720,7 +735,7 @@ export default function KPIs() {
 
                   {/* Fila TOTAL */}
                   <tr className="font-bold bg-slate-100 sticky bottom-0 border-t-2 border-slate-300">
-                    <td className="px-3 py-2 text-center" colSpan={3}>
+                    <td className="px-3 py-2 text-center" colSpan={5}>
                       TOTAL
                     </td>
                     <Td>{f1(totales.tiempoProgramado)}</Td>
