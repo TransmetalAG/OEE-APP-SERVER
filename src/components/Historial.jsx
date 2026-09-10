@@ -17,7 +17,7 @@ import {
 } from 'recharts';
 
 const TIPOS_PARO = ["Planeado", "No Planeado", "Anomalía"];
-const UMBRAL_ALERTA = 120; // minutos
+const UMBRAL_ALERTA = 120; // minutos por día
 
 // Utilidad para formatear fechas a YYYY-MM-DD
 const fmt = (date) => {
@@ -79,9 +79,9 @@ export default function Historial() {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [maquinaFiltro, setMaquinaFiltro] = useState("");
-  const [tipoFiltro, setTipoFiltro] = useState("No Planeado"); // 👈 default
-  const [mostrarPareto, setMostrarPareto] = useState(true);   // 👈 visible por defecto
-  const [mostrarLista, setMostrarLista] = useState(false);    // 👈 oculta por defecto
+  const [tipoFiltro, setTipoFiltro] = useState("No Planeado");
+  const [mostrarPareto, setMostrarPareto] = useState(true);
+  const [mostrarLista, setMostrarLista] = useState(false);
   const [filtroRapido, setFiltroRapido] = useState("");
 
   const fetchData = async () => {
@@ -181,11 +181,32 @@ export default function Historial() {
     };
   }, [datosPareto]);
 
-  // Alerta por minutos acumulados
-  const alertaMinutos = useMemo(() => {
-    const total = parosFiltrados.reduce((sum, p) => sum + (p.minutos || 0), 0);
-    return { activa: total >= UMBRAL_ALERTA, total };
-  }, [parosFiltrados]);
+  // 🚨 Alerta por día: agrupa minutos NO PLANEADOS por fecha dentro del rango
+  const alertasPorDia = useMemo(() => {
+    const noPlaneadosEnRango = paros.filter((p) => {
+      const cumpleFecha =
+        (!fechaInicio || p.fecha >= fechaInicio) &&
+        (!fechaFin || p.fecha <= fechaFin);
+      return cumpleFecha && p.tipo === "No Planeado";
+    });
+
+    const porDia = noPlaneadosEnRango.reduce((acc, p) => {
+      const key = p.fecha;
+      acc[key] = (acc[key] || 0) + (p.minutos || 0);
+      return acc;
+    }, {});
+
+    const diasAlerta = Object.entries(porDia)
+      .map(([fecha, minutos]) => ({ fecha, minutos }))
+      .filter((d) => d.minutos >= UMBRAL_ALERTA)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+    return {
+      activa: diasAlerta.length > 0,
+      diasAlerta,
+      totalDias: diasAlerta.length,
+    };
+  }, [paros, fechaInicio, fechaFin]);
 
   // Top 5 por minutos acumulados
   const top5Minutos = useMemo(() => {
@@ -271,7 +292,7 @@ export default function Historial() {
     setFechaInicio("");
     setFechaFin("");
     setMaquinaFiltro("");
-    setTipoFiltro("No Planeado"); // 👈 vuelve al default
+    setTipoFiltro("No Planeado");
     setFiltroRapido("");
   };
 
@@ -415,6 +436,35 @@ export default function Historial() {
         )}
       </div>
 
+      {/* 🚨 Alerta por día: uno o más días superaron el umbral */}
+      {alertasPorDia.activa && (
+        <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-600 rounded shadow-sm">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-2xl">🚨</span>
+            <div>
+              <div className="font-bold text-red-800">
+                {alertasPorDia.totalDias === 1
+                  ? "Alerta: un día superó el umbral de minutos no planeados"
+                  : `Alerta: ${alertasPorDia.totalDias} días superaron el umbral de minutos no planeados`}
+              </div>
+              <div className="text-sm text-red-700">
+                Umbral: <strong>{UMBRAL_ALERTA} min</strong> por día
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1 ml-9">
+            {alertasPorDia.diasAlerta.map((d) => (
+              <div key={d.fecha} className="flex items-center gap-2 text-sm text-red-800">
+                <span>📅</span>
+                <span className="font-semibold">{d.fecha}</span>
+                <span className="ml-auto font-bold">{d.minutos} min</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Top 5: Minutos y Repetitividad lado a lado */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
         {/* TOP 5 MINUTOS */}
@@ -490,21 +540,6 @@ export default function Historial() {
         </div>
       </div>
 
-      {/* Alerta de minutos acumulados */}
-      {alertaMinutos.activa && (
-        <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-600 rounded shadow-sm flex items-center gap-3">
-          <span className="text-2xl">🚨</span>
-          <div>
-            <div className="font-bold text-red-800">
-              Alerta: minutos acumulados de paro superan el umbral
-            </div>
-            <div className="text-sm text-red-700">
-              Total del período: <strong>{alertaMinutos.total} min</strong> (umbral: {UMBRAL_ALERTA} min)
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Pareto */}
       {mostrarPareto && datosPareto.length > 0 && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
@@ -512,13 +547,13 @@ export default function Historial() {
 
           {estadisticasPareto && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className={`p-3 rounded shadow ${alertaMinutos.activa ? "bg-red-500 text-white" : "bg-white"}`}>
-                <div className={`text-sm ${alertaMinutos.activa ? "text-red-100" : "text-gray-600"}`}>
+              <div className={`p-3 rounded shadow ${alertasPorDia.activa ? "bg-red-500 text-white" : "bg-white"}`}>
+                <div className={`text-sm ${alertasPorDia.activa ? "text-red-100" : "text-gray-600"}`}>
                   Total de minutos
                 </div>
-                <div className={`text-xl font-bold ${alertaMinutos.activa ? "text-white" : "text-blue-600"}`}>
+                <div className={`text-xl font-bold ${alertasPorDia.activa ? "text-white" : "text-blue-600"}`}>
                   {estadisticasPareto.totalMinutos} min
-                  {alertaMinutos.activa && <span className="ml-2">🚨</span>}
+                  {alertasPorDia.activa && <span className="ml-2">🚨</span>}
                 </div>
               </div>
               <div className="bg-white p-3 rounded shadow">
