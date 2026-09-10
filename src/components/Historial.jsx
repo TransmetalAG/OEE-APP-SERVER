@@ -714,3 +714,109 @@ export default function Historial() {
                     <th className="border p-1 text-left">Causas</th>
                     <th className="border p-1 text-left">Fechas</th>
                     <th className="border p-1 text-right">Min</th>
+                    <th className="border p-1 text-right">%</th>
+                    <th className="border p-1 text-right">% Acum</th>
+                    <th className="border p-1 text-center">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {datosPareto.map((item, index) => (
+                    <tr
+                      key={index}
+                      onClick={() => setHechoFiltro(hechoFiltro === item.hecho ? "" : item.hecho)}
+                      className={`cursor-pointer transition ${
+                        item.esPareto ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100'
+                      } ${hechoFiltro === item.hecho ? 'ring-2 ring-purple-400' : ''}`}
+                      title="Clic para filtrar por este tipo de paro"
+                    >
+                      <td className="border p-1 text-center">{index + 1}</td>
+                      <td className="border p-1 font-medium">{item.hecho}</td>
+                      <td className="border p-1 text-xs text-gray-700">{item.maquinasTexto}</td>
+                      <td className="border p-1 text-xs text-gray-700">{item.causasTexto}</td>
+                      <td className="border p-1 text-xs text-gray-700">{item.fechasTexto}</td>
+                      <td className="border p-1 text-right">{item.minutos}</td>
+                      <td className="border p-1 text-right">{item.porcentaje}%</td>
+                      <td className="border p-1 text-right">{item.porcentajeAcumulado}%</td>
+                      <td className="border p-1 text-center">
+                        {item.esPareto ?
+                          <span className="text-green-600">✅ 80%</span> :
+                          <span className="text-red-600">⬆️ 20%</span>
+                        }
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tabla (colapsable) */}
+      {mostrarLista && (
+        <div className="overflow-x-auto max-h-[550px] overflow-y-auto border-t pt-4">
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">Cargando datos...</div>
+          ) : parosFiltrados.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No hay registros que coincidan con los filtros
+            </div>
+          ) : (
+            <table className="min-w-max border text-sm">
+              <thead className="bg-gray-100 sticky top-0">
+                <tr>
+                  <th className="border p-2">Fecha</th>
+                  <th className="border p-2">Máquina</th>
+                  <th className="border p-2">Operador</th>
+                  <th className="border p-2">Tipo</th>
+                  <th className="border p-2">Origen</th>
+                  <th className="border p-2">Min</th>
+                  <th className="border p-2">Paro / Hecho</th>
+                  <th className="border p-2">Causa</th>
+                  <th className="border p-2">Acción</th>
+                  <th className="border p-2">Comentario</th>
+                </tr>
+                {/* 👇 FILA DE FILTROS */}
+                <tr className="bg-gray-50">
+                  <th className="border p-1"></th>
+                  <th className="border p-1"></th>
+                  <th className="border p-1"></th>
+                  <th className="border p-1"></th>
+                  <th className="border p-1"></th>
+                  <th className="border p-1"></th>
+                  <th className="border p-1">
+                    <FiltroSelect
+                      opciones={hechosDisponibles}
+                      valor={hechoFiltro}
+                      onChange={setHechoFiltro}
+                      placeholder="Buscar paro..."
+                    />
+                  </th>
+                  <th className="border p-1"></th>
+                  <th className="border p-1"></th>
+                  <th className="border p-1"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {parosFiltrados.map((p, i) => (
+                  <tr key={i} className="text-center hover:bg-gray-50">
+                    <td className="border p-2">{p.fecha}</td>
+                    <td className="border p-2">{p.maquina}</td>
+                    <td className="border p-2">{p.operador}</td>
+                    <td className="border p-2">{p.tipo}</td>
+                    <td className="border p-2">{p.origen || "-"}</td>
+                    <td className="border p-2">{p.minutos}</td>
+                    <td className="border p-2 font-semibold">{p.hecho}</td>
+                    <td className="border p-2">{p.causa}</td>
+                    <td className="border p-2">{p.accion}</td>
+                    <td className="border p-2">{p.comentario}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
