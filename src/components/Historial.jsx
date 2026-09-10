@@ -18,6 +18,55 @@ import {
 
 const TIPOS_PARO = ["Planeado", "No Planeado", "Anomalía"];
 
+// Utilidad para formatear fechas a YYYY-MM-DD
+const fmt = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+// Calcula rangos de fechas rápidos
+const calcularRango = (tipo) => {
+  const hoy = new Date();
+  const y = hoy.getFullYear();
+  const m = hoy.getMonth();
+  const d = hoy.getDate();
+
+  switch (tipo) {
+    case "hoy":
+      return { inicio: fmt(hoy), fin: fmt(hoy) };
+
+    case "semana": {
+      const dia = hoy.getDay(); // 0 = domingo
+      const diff = dia === 0 ? 6 : dia - 1; // lunes como inicio
+      const lunes = new Date(y, m, d - diff);
+      const domingo = new Date(y, m, d - diff + 6);
+      return { inicio: fmt(lunes), fin: fmt(domingo) };
+    }
+
+    case "mes": {
+      const inicio = new Date(y, m, 1);
+      const fin = new Date(y, m + 1, 0);
+      return { inicio: fmt(inicio), fin: fmt(fin) };
+    }
+
+    case "mesAnterior": {
+      const inicio = new Date(y, m - 1, 1);
+      const fin = new Date(y, m, 0);
+      return { inicio: fmt(inicio), fin: fmt(fin) };
+    }
+
+    case "30dias": {
+      const inicio = new Date(y, m, d - 29);
+      return { inicio: fmt(inicio), fin: fmt(hoy) };
+    }
+
+    default:
+      return { inicio: "", fin: "" };
+  }
+};
+
 export default function Historial() {
   const [paros, setParos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,6 +75,7 @@ export default function Historial() {
   const [maquinaFiltro, setMaquinaFiltro] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("");
   const [mostrarPareto, setMostrarPareto] = useState(false);
+  const [filtroRapido, setFiltroRapido] = useState("");
 
   const fetchData = async () => {
     setLoading(true);
@@ -69,10 +119,10 @@ export default function Historial() {
 
   const parosFiltrados = useMemo(() => {
     return paros.filter((p) => {
-      const cumpleFecha = 
+      const cumpleFecha =
         (!fechaInicio || p.fecha >= fechaInicio) &&
         (!fechaFin || p.fecha <= fechaFin);
-      
+
       return (
         cumpleFecha &&
         (!maquinaFiltro || p.maquina === maquinaFiltro) &&
@@ -94,7 +144,7 @@ export default function Historial() {
 
     const total = sorted.reduce((sum, item) => sum + item.minutos, 0);
     let acumulado = 0;
-    
+
     return sorted.map((item) => {
       acumulado += item.minutos;
       const porcentaje = (item.minutos / total) * 100;
@@ -110,12 +160,12 @@ export default function Historial() {
 
   const estadisticasPareto = useMemo(() => {
     if (datosPareto.length === 0) return null;
-    
+
     const totalMinutos = datosPareto.reduce((sum, item) => sum + item.minutos, 0);
     const causas80 = datosPareto.filter(item => item.porcentajeAcumulado <= 80);
     const minutos80 = causas80.reduce((sum, item) => sum + item.minutos, 0);
     const porcentaje80 = (minutos80 / totalMinutos) * 100;
-    
+
     return {
       totalCausas: datosPareto.length,
       causas80: causas80.length,
@@ -124,7 +174,56 @@ export default function Historial() {
     };
   }, [datosPareto]);
 
-  const maquinasUnicas = useMemo(() => 
+  // Top 5 por minutos acumulados
+  const top5Minutos = useMemo(() => {
+    const agrupado = parosFiltrados.reduce((acc, p) => {
+      const key = p.maquina || "Sin máquina";
+      if (!acc[key]) acc[key] = { maquina: key, minutos: 0, paros: 0 };
+      acc[key].minutos += p.minutos || 0;
+      acc[key].paros += 1;
+      return acc;
+    }, {});
+
+    return Object.values(agrupado)
+      .sort((a, b) => b.minutos - a.minutos)
+      .slice(0, 5)
+      .map((m) => ({
+        ...m,
+        mttr: m.paros > 0 ? Math.round((m.minutos / m.paros) * 10) / 10 : 0,
+      }));
+  }, [parosFiltrados]);
+
+  // Top 5 por repetitividad (cantidad de paros)
+  const top5Repetitividad = useMemo(() => {
+    const agrupado = parosFiltrados.reduce((acc, p) => {
+      const key = p.maquina || "Sin máquina";
+      if (!acc[key]) acc[key] = { maquina: key, minutos: 0, paros: 0 };
+      acc[key].minutos += p.minutos || 0;
+      acc[key].paros += 1;
+      return acc;
+    }, {});
+
+    // Cálculo de días del período para MTBF
+    const diasPeriodo =
+      fechaInicio && fechaFin
+        ? Math.max(
+            1,
+            (new Date(fechaFin) - new Date(fechaInicio)) / (1000 * 60 * 60 * 24)
+          )
+        : 30;
+
+    return Object.values(agrupado)
+      .sort((a, b) => b.paros - a.paros)
+      .slice(0, 5)
+      .map((m) => ({
+        ...m,
+        mtbf: m.paros > 0
+          ? Math.round(((diasPeriodo * 24) / m.paros) * 10) / 10
+          : 0,
+      }));
+  }, [parosFiltrados, fechaInicio, fechaFin]);
+
+  const maquinasUnicas = useMemo(() =>
     [...new Set(paros.map((p) => p.maquina))],
     [paros]
   );
@@ -170,7 +269,7 @@ export default function Historial() {
       nombreArchivo += `_hasta_${fechaFin}`;
     }
     nombreArchivo += ".xlsx";
-    
+
     saveAs(blob, nombreArchivo);
   };
 
@@ -179,12 +278,43 @@ export default function Historial() {
     setFechaFin("");
     setMaquinaFiltro("");
     setTipoFiltro("");
+    setFiltroRapido("");
+  };
+
+  const aplicarFiltroRapido = (tipo) => {
+    setFiltroRapido(tipo);
+    if (tipo === "custom") return;
+    const { inicio, fin } = calcularRango(tipo);
+    setFechaInicio(inicio);
+    setFechaFin(fin);
   };
 
   return (
-    // SOLO CAMBIÉ ESTO: el contenedor principal para que sea más ancho
     <div className="p-4 bg-white shadow w-full">
       <h2 className="text-xl font-bold mb-4">Historial de Paros</h2>
+
+      {/* Filtros rápidos por fecha */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {[
+          { key: "hoy", label: "📅 Hoy" },
+          { key: "semana", label: "📅 Esta semana" },
+          { key: "mes", label: "📅 Este mes" },
+          { key: "mesAnterior", label: "📅 Mes anterior" },
+          { key: "30dias", label: "📅 Últimos 30 días" },
+        ].map((f) => (
+          <button
+            key={f.key}
+            onClick={() => aplicarFiltroRapido(f.key)}
+            className={`px-3 py-1.5 rounded-full text-sm transition ${
+              filtroRapido === f.key
+                ? "bg-blue-600 text-white shadow"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-4 mb-4 items-end">
@@ -193,14 +323,20 @@ export default function Historial() {
           <input
             type="date"
             value={fechaInicio}
-            onChange={(e) => setFechaInicio(e.target.value)}
+            onChange={(e) => {
+              setFechaInicio(e.target.value);
+              setFiltroRapido("custom");
+            }}
             className="border p-2 rounded"
           />
           <label className="text-sm font-medium">Hasta:</label>
           <input
             type="date"
             value={fechaFin}
-            onChange={(e) => setFechaFin(e.target.value)}
+            onChange={(e) => {
+              setFechaFin(e.target.value);
+              setFiltroRapido("custom");
+            }}
             className="border p-2 rounded"
           />
         </div>
@@ -253,8 +389,8 @@ export default function Historial() {
         <button
           onClick={() => setMostrarPareto(!mostrarPareto)}
           className={`px-4 py-2 rounded ${
-            mostrarPareto 
-              ? "bg-purple-600 text-white hover:bg-purple-700" 
+            mostrarPareto
+              ? "bg-purple-600 text-white hover:bg-purple-700"
               : "bg-gray-200 hover:bg-gray-300"
           }`}
         >
@@ -273,11 +409,84 @@ export default function Historial() {
         )}
       </div>
 
+      {/* Top 5: Minutos y Repetitividad lado a lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        {/* TOP 5 MINUTOS */}
+        <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+          <h3 className="text-lg font-bold mb-3 text-blue-800">
+            ⏱️ Top 5 por Minutos Acumulados
+          </h3>
+          {top5Minutos.length === 0 ? (
+            <p className="text-gray-500 text-sm">Sin datos en el período</p>
+          ) : (
+            <div className="space-y-2">
+              {top5Minutos.map((m, i) => {
+                const max = top5Minutos[0].minutos || 1;
+                return (
+                  <div key={m.maquina} className="flex items-center gap-2">
+                    <span className="w-5 font-bold text-blue-700">{i + 1}</span>
+                    <span className="w-28 truncate text-sm" title={m.maquina}>
+                      {m.maquina}
+                    </span>
+                    <div className="flex-1 bg-blue-100 rounded-full h-6 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full flex items-center justify-end pr-2 text-white text-xs font-semibold"
+                        style={{ width: `${(m.minutos / max) * 100}%` }}
+                      >
+                        {m.minutos} min
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-600 w-20 text-right">
+                      {m.paros}p · MTTR {m.mttr}m
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* TOP 5 REPETITIVIDAD */}
+        <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border border-orange-100">
+          <h3 className="text-lg font-bold mb-3 text-orange-800">
+            🔁 Top 5 por Repetitividad
+          </h3>
+          {top5Repetitividad.length === 0 ? (
+            <p className="text-gray-500 text-sm">Sin datos en el período</p>
+          ) : (
+            <div className="space-y-2">
+              {top5Repetitividad.map((m, i) => {
+                const max = top5Repetitividad[0].paros || 1;
+                return (
+                  <div key={m.maquina} className="flex items-center gap-2">
+                    <span className="w-5 font-bold text-orange-700">{i + 1}</span>
+                    <span className="w-28 truncate text-sm" title={m.maquina}>
+                      {m.maquina}
+                    </span>
+                    <div className="flex-1 bg-orange-100 rounded-full h-6 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-orange-500 to-red-500 h-full flex items-center justify-end pr-2 text-white text-xs font-semibold"
+                        style={{ width: `${(m.paros / max) * 100}%` }}
+                      >
+                        {m.paros} paros
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-600 w-24 text-right">
+                      {m.minutos}m · MTBF {m.mtbf}h
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Pareto */}
       {mostrarPareto && datosPareto.length > 0 && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
           <h3 className="text-lg font-bold mb-2">📊 Análisis de Pareto - Causas de Paros</h3>
-          
+
           {estadisticasPareto && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="bg-white p-3 rounded shadow">
@@ -310,41 +519,42 @@ export default function Historial() {
           <ResponsiveContainer width="100%" height={400}>
             <ComposedChart data={datosPareto}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="causa" 
-                angle={-45} 
-                textAnchor="end" 
+              <XAxis
+                dataKey="causa"
+                angle={-45}
+                textAnchor="end"
                 height={80}
                 interval={0}
               />
               <YAxis yAxisId="left" label={{ value: 'Minutos', angle: -90, position: 'insideLeft' }} />
-              <YAxis 
-                yAxisId="right" 
-                orientation="right" 
+              <YAxis
+                yAxisId="right"
+                orientation="right"
                 label={{ value: '% Acumulado', angle: 90, position: 'insideRight' }}
                 domain={[0, 100]}
               />
-              <Tooltip 
+              <Tooltip
                 formatter={(value, name) => {
                   if (name === 'porcentajeAcumulado') return `${value}%`;
                   if (name === 'porcentaje') return `${value}%`;
                   return value;
                 }}
+                labelFormatter={(label) => `Causa: ${label}`}
               />
               <Legend />
               <Bar yAxisId="left" dataKey="minutos" fill="#8884d8" name="Minutos">
                 {datosPareto.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
+                  <Cell
+                    key={`cell-${index}`}
                     fill={entry.esPareto ? '#4CAF50' : '#F44336'}
                   />
                 ))}
               </Bar>
-              <Line 
-                yAxisId="right" 
-                type="monotone" 
-                dataKey="porcentajeAcumulado" 
-                stroke="#FF7300" 
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="porcentajeAcumulado"
+                stroke="#FF7300"
                 name="% Acumulado"
                 strokeWidth={2}
               />
@@ -389,8 +599,8 @@ export default function Historial() {
                       <td className="border p-1 text-right">{item.porcentaje}%</td>
                       <td className="border p-1 text-right">{item.porcentajeAcumulado}%</td>
                       <td className="border p-1 text-center">
-                        {item.esPareto ? 
-                          <span className="text-green-600">✅ 80%</span> : 
+                        {item.esPareto ?
+                          <span className="text-green-600">✅ 80%</span> :
                           <span className="text-red-600">⬆️ 20%</span>
                         }
                       </td>
