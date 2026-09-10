@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 
 const TIPOS_PARO = ["Planeado", "No Planeado", "Anomalía"];
+const UMBRAL_ALERTA = 120; // minutos
 
 // Utilidad para formatear fechas a YYYY-MM-DD
 const fmt = (date) => {
@@ -36,6 +37,11 @@ const calcularRango = (tipo) => {
   switch (tipo) {
     case "hoy":
       return { inicio: fmt(hoy), fin: fmt(hoy) };
+
+    case "ayer": {
+      const ayer = new Date(y, m, d - 1);
+      return { inicio: fmt(ayer), fin: fmt(ayer) };
+    }
 
     case "semana": {
       const dia = hoy.getDay(); // 0 = domingo
@@ -73,8 +79,9 @@ export default function Historial() {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [maquinaFiltro, setMaquinaFiltro] = useState("");
-  const [tipoFiltro, setTipoFiltro] = useState("");
-  const [mostrarPareto, setMostrarPareto] = useState(false);
+  const [tipoFiltro, setTipoFiltro] = useState("No Planeado"); // 👈 default
+  const [mostrarPareto, setMostrarPareto] = useState(true);   // 👈 visible por defecto
+  const [mostrarLista, setMostrarLista] = useState(false);    // 👈 oculta por defecto
   const [filtroRapido, setFiltroRapido] = useState("");
 
   const fetchData = async () => {
@@ -174,6 +181,12 @@ export default function Historial() {
     };
   }, [datosPareto]);
 
+  // Alerta por minutos acumulados
+  const alertaMinutos = useMemo(() => {
+    const total = parosFiltrados.reduce((sum, p) => sum + (p.minutos || 0), 0);
+    return { activa: total >= UMBRAL_ALERTA, total };
+  }, [parosFiltrados]);
+
   // Top 5 por minutos acumulados
   const top5Minutos = useMemo(() => {
     const agrupado = parosFiltrados.reduce((acc, p) => {
@@ -186,14 +199,10 @@ export default function Historial() {
 
     return Object.values(agrupado)
       .sort((a, b) => b.minutos - a.minutos)
-      .slice(0, 5)
-      .map((m) => ({
-        ...m,
-        mttr: m.paros > 0 ? Math.round((m.minutos / m.paros) * 10) / 10 : 0,
-      }));
+      .slice(0, 5);
   }, [parosFiltrados]);
 
-  // Top 5 por repetitividad (cantidad de paros)
+  // Top 5 por repetitividad
   const top5Repetitividad = useMemo(() => {
     const agrupado = parosFiltrados.reduce((acc, p) => {
       const key = p.maquina || "Sin máquina";
@@ -203,25 +212,10 @@ export default function Historial() {
       return acc;
     }, {});
 
-    // Cálculo de días del período para MTBF
-    const diasPeriodo =
-      fechaInicio && fechaFin
-        ? Math.max(
-            1,
-            (new Date(fechaFin) - new Date(fechaInicio)) / (1000 * 60 * 60 * 24)
-          )
-        : 30;
-
     return Object.values(agrupado)
       .sort((a, b) => b.paros - a.paros)
-      .slice(0, 5)
-      .map((m) => ({
-        ...m,
-        mtbf: m.paros > 0
-          ? Math.round(((diasPeriodo * 24) / m.paros) * 10) / 10
-          : 0,
-      }));
-  }, [parosFiltrados, fechaInicio, fechaFin]);
+      .slice(0, 5);
+  }, [parosFiltrados]);
 
   const maquinasUnicas = useMemo(() =>
     [...new Set(paros.map((p) => p.maquina))],
@@ -277,7 +271,7 @@ export default function Historial() {
     setFechaInicio("");
     setFechaFin("");
     setMaquinaFiltro("");
-    setTipoFiltro("");
+    setTipoFiltro("No Planeado"); // 👈 vuelve al default
     setFiltroRapido("");
   };
 
@@ -297,6 +291,7 @@ export default function Historial() {
       <div className="flex flex-wrap gap-2 mb-3">
         {[
           { key: "hoy", label: "📅 Hoy" },
+          { key: "ayer", label: "📅 Ayer" },
           { key: "semana", label: "📅 Esta semana" },
           { key: "mes", label: "📅 Este mes" },
           { key: "mesAnterior", label: "📅 Mes anterior" },
@@ -388,13 +383,24 @@ export default function Historial() {
 
         <button
           onClick={() => setMostrarPareto(!mostrarPareto)}
-          className={`px-4 py-2 rounded ${
+          className={`px-4 py-2 rounded transition ${
             mostrarPareto
               ? "bg-purple-600 text-white hover:bg-purple-700"
-              : "bg-gray-200 hover:bg-gray-300"
+              : "bg-gray-200 hover:bg-gray-300 text-gray-700"
           }`}
         >
-          📊 Pareto
+          {mostrarPareto ? "📊 Pareto −" : "📊 Pareto +"}
+        </button>
+
+        <button
+          onClick={() => setMostrarLista(!mostrarLista)}
+          className={`px-4 py-2 rounded transition ${
+            mostrarLista
+              ? "bg-indigo-600 text-white hover:bg-indigo-700"
+              : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+          }`}
+        >
+          {mostrarLista ? "📋 Lista −" : "📋 Lista +"}
         </button>
       </div>
 
@@ -410,7 +416,7 @@ export default function Historial() {
       </div>
 
       {/* Top 5: Minutos y Repetitividad lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
         {/* TOP 5 MINUTOS */}
         <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
           <h3 className="text-lg font-bold mb-3 text-blue-800">
@@ -423,21 +429,22 @@ export default function Historial() {
               {top5Minutos.map((m, i) => {
                 const max = top5Minutos[0].minutos || 1;
                 return (
-                  <div key={m.maquina} className="flex items-center gap-2">
-                    <span className="w-5 font-bold text-blue-700">{i + 1}</span>
-                    <span className="w-28 truncate text-sm" title={m.maquina}>
+                  <div key={m.maquina} className="flex items-center gap-3">
+                    <span className="w-5 font-bold text-blue-700 text-right">{i + 1}</span>
+                    <span className="w-36 text-sm break-words leading-tight">
                       {m.maquina}
                     </span>
                     <div className="flex-1 bg-blue-100 rounded-full h-6 overflow-hidden">
                       <div
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full flex items-center justify-end pr-2 text-white text-xs font-semibold"
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full"
                         style={{ width: `${(m.minutos / max) * 100}%` }}
-                      >
-                        {m.minutos} min
-                      </div>
+                      />
                     </div>
-                    <span className="text-xs text-gray-600 w-20 text-right">
-                      {m.paros}p · MTTR {m.mttr}m
+                    <span className="text-sm font-semibold text-blue-700 w-20 text-right whitespace-nowrap">
+                      {m.minutos} min
+                    </span>
+                    <span className="text-xs text-gray-500 w-14 text-right whitespace-nowrap">
+                      {m.paros} p
                     </span>
                   </div>
                 );
@@ -458,21 +465,22 @@ export default function Historial() {
               {top5Repetitividad.map((m, i) => {
                 const max = top5Repetitividad[0].paros || 1;
                 return (
-                  <div key={m.maquina} className="flex items-center gap-2">
-                    <span className="w-5 font-bold text-orange-700">{i + 1}</span>
-                    <span className="w-28 truncate text-sm" title={m.maquina}>
+                  <div key={m.maquina} className="flex items-center gap-3">
+                    <span className="w-5 font-bold text-orange-700 text-right">{i + 1}</span>
+                    <span className="w-36 text-sm break-words leading-tight">
                       {m.maquina}
                     </span>
                     <div className="flex-1 bg-orange-100 rounded-full h-6 overflow-hidden">
                       <div
-                        className="bg-gradient-to-r from-orange-500 to-red-500 h-full flex items-center justify-end pr-2 text-white text-xs font-semibold"
+                        className="bg-gradient-to-r from-orange-500 to-red-500 h-full"
                         style={{ width: `${(m.paros / max) * 100}%` }}
-                      >
-                        {m.paros} paros
-                      </div>
+                      />
                     </div>
-                    <span className="text-xs text-gray-600 w-24 text-right">
-                      {m.minutos}m · MTBF {m.mtbf}h
+                    <span className="text-sm font-semibold text-orange-700 w-20 text-right whitespace-nowrap">
+                      {m.paros} paros
+                    </span>
+                    <span className="text-xs text-gray-500 w-14 text-right whitespace-nowrap">
+                      {m.minutos} m
                     </span>
                   </div>
                 );
@@ -482,6 +490,21 @@ export default function Historial() {
         </div>
       </div>
 
+      {/* Alerta de minutos acumulados */}
+      {alertaMinutos.activa && (
+        <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-600 rounded shadow-sm flex items-center gap-3">
+          <span className="text-2xl">🚨</span>
+          <div>
+            <div className="font-bold text-red-800">
+              Alerta: minutos acumulados de paro superan el umbral
+            </div>
+            <div className="text-sm text-red-700">
+              Total del período: <strong>{alertaMinutos.total} min</strong> (umbral: {UMBRAL_ALERTA} min)
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pareto */}
       {mostrarPareto && datosPareto.length > 0 && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
@@ -489,29 +512,26 @@ export default function Historial() {
 
           {estadisticasPareto && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className="bg-white p-3 rounded shadow">
-                <div className="text-sm text-gray-600">Total de minutos</div>
-                <div className="text-xl font-bold text-blue-600">
+              <div className={`p-3 rounded shadow ${alertaMinutos.activa ? "bg-red-500 text-white" : "bg-white"}`}>
+                <div className={`text-sm ${alertaMinutos.activa ? "text-red-100" : "text-gray-600"}`}>
+                  Total de minutos
+                </div>
+                <div className={`text-xl font-bold ${alertaMinutos.activa ? "text-white" : "text-blue-600"}`}>
                   {estadisticasPareto.totalMinutos} min
+                  {alertaMinutos.activa && <span className="ml-2">🚨</span>}
                 </div>
               </div>
               <div className="bg-white p-3 rounded shadow">
                 <div className="text-sm text-gray-600">Causas totales</div>
-                <div className="text-xl font-bold">
-                  {estadisticasPareto.totalCausas}
-                </div>
+                <div className="text-xl font-bold">{estadisticasPareto.totalCausas}</div>
               </div>
               <div className="bg-white p-3 rounded shadow">
                 <div className="text-sm text-gray-600">Causas que generan el 80%</div>
-                <div className="text-xl font-bold text-green-600">
-                  {estadisticasPareto.causas80}
-                </div>
+                <div className="text-xl font-bold text-green-600">{estadisticasPareto.causas80}</div>
               </div>
               <div className="bg-white p-3 rounded shadow">
                 <div className="text-sm text-gray-600">% representado</div>
-                <div className="text-xl font-bold text-purple-600">
-                  {estadisticasPareto.porcentaje80}%
-                </div>
+                <div className="text-xl font-bold text-purple-600">{estadisticasPareto.porcentaje80}%</div>
               </div>
             </div>
           )}
@@ -613,49 +633,51 @@ export default function Historial() {
         </div>
       )}
 
-      {/* Tabla */}
-      <div className="overflow-x-auto max-h-[550px] overflow-y-auto">
-        {loading ? (
-          <div className="text-center py-8 text-gray-500">Cargando datos...</div>
-        ) : parosFiltrados.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No hay registros que coincidan con los filtros
-          </div>
-        ) : (
-          <table className="min-w-max border text-sm">
-            <thead className="bg-gray-100 sticky top-0">
-              <tr>
-                <th className="border p-2">Fecha</th>
-                <th className="border p-2">Máquina</th>
-                <th className="border p-2">Operador</th>
-                <th className="border p-2">Tipo</th>
-                <th className="border p-2">Origen</th>
-                <th className="border p-2">Min</th>
-                <th className="border p-2">Paro / Hecho</th>
-                <th className="border p-2">Causa</th>
-                <th className="border p-2">Acción</th>
-                <th className="border p-2">Comentario</th>
-              </tr>
-            </thead>
-            <tbody>
-              {parosFiltrados.map((p, i) => (
-                <tr key={i} className="text-center hover:bg-gray-50">
-                  <td className="border p-2">{p.fecha}</td>
-                  <td className="border p-2">{p.maquina}</td>
-                  <td className="border p-2">{p.operador}</td>
-                  <td className="border p-2">{p.tipo}</td>
-                  <td className="border p-2">{p.origen || "-"}</td>
-                  <td className="border p-2">{p.minutos}</td>
-                  <td className="border p-2 font-semibold">{p.hecho}</td>
-                  <td className="border p-2">{p.causa}</td>
-                  <td className="border p-2">{p.accion}</td>
-                  <td className="border p-2">{p.comentario}</td>
+      {/* Tabla (colapsable) */}
+      {mostrarLista && (
+        <div className="overflow-x-auto max-h-[550px] overflow-y-auto border-t pt-4">
+          {loading ? (
+            <div className="text-center py-8 text-gray-500">Cargando datos...</div>
+          ) : parosFiltrados.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No hay registros que coincidan con los filtros
+            </div>
+          ) : (
+            <table className="min-w-max border text-sm">
+              <thead className="bg-gray-100 sticky top-0">
+                <tr>
+                  <th className="border p-2">Fecha</th>
+                  <th className="border p-2">Máquina</th>
+                  <th className="border p-2">Operador</th>
+                  <th className="border p-2">Tipo</th>
+                  <th className="border p-2">Origen</th>
+                  <th className="border p-2">Min</th>
+                  <th className="border p-2">Paro / Hecho</th>
+                  <th className="border p-2">Causa</th>
+                  <th className="border p-2">Acción</th>
+                  <th className="border p-2">Comentario</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {parosFiltrados.map((p, i) => (
+                  <tr key={i} className="text-center hover:bg-gray-50">
+                    <td className="border p-2">{p.fecha}</td>
+                    <td className="border p-2">{p.maquina}</td>
+                    <td className="border p-2">{p.operador}</td>
+                    <td className="border p-2">{p.tipo}</td>
+                    <td className="border p-2">{p.origen || "-"}</td>
+                    <td className="border p-2">{p.minutos}</td>
+                    <td className="border p-2 font-semibold">{p.hecho}</td>
+                    <td className="border p-2">{p.causa}</td>
+                    <td className="border p-2">{p.accion}</td>
+                    <td className="border p-2">{p.comentario}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
     </div>
   );
 }
