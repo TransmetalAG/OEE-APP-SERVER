@@ -1,9 +1,4 @@
-/* =========================================================
-   DASHBOARD PLANTA TRANSMETAL
-   Grupo AG · División Industrial
-   Versión Senior — Enfoque industrial / directivo
-   Incluye: Modo normal + Modo TV (carrusel automático)
-========================================================= */
+
 
 import React, {
   useCallback,
@@ -240,9 +235,19 @@ function agregarOEE(calculos) {
    4. HOOKS
 ========================================================= */
 
-function useDashboardData(anio, mes) {
+function useDashboardData(anio, mes, diaSeleccionado = null) {
   const hoy = useMemo(() => new Date(), []);
-  const rango = useMemo(() => calcularRango(anio, mes, hoy), [anio, mes, hoy]);
+
+  const rango = useMemo(() => {
+    const base = calcularRango(anio, mes, hoy);
+    if (base.fin && diaSeleccionado) {
+      const diaMax = Number(base.fin.split("-")[2]);
+      const dia = Math.min(Math.max(diaSeleccionado, 1), diaMax);
+      return { ...base, fin: fechaISO(anio, mes, dia) };
+    }
+    return base;
+  }, [anio, mes, hoy, diaSeleccionado]);
+
   const rangoPrev = useMemo(() => rangoMesAnterior(anio, mes), [anio, mes]);
 
   const [data, setData] = useState({
@@ -360,18 +365,14 @@ function useModoTV(activo) {
         console.warn("Fullscreen no disponible:", err);
       }
     };
-
     const salir = async () => {
       try {
-        if (document.fullscreenElement) {
-          await document.exitFullscreen();
-        }
+        if (document.fullscreenElement) await document.exitFullscreen();
       } catch (err) {
         console.warn(err);
       }
       setFullscreen(false);
     };
-
     if (activo) entrar();
     else salir();
   }, [activo]);
@@ -397,7 +398,6 @@ function useAutoRefresh(activo, callback, intervaloMs = 300000) {
    5. COMPONENTES UI (modo normal)
 ========================================================= */
 
-/* ---------- KPI Card ---------- */
 function KpiCard({
   titulo,
   valor,
@@ -428,7 +428,9 @@ function KpiCard({
         <span className={`h-1.5 w-1.5 rounded-full ${tema.dot}`} aria-hidden />
       </div>
 
-      <p className={`mt-1.5 text-2xl font-black tabular-nums tracking-tight ${tema.text}`}>
+      <p
+        className={`mt-1.5 text-2xl font-black tabular-nums tracking-tight ${tema.text}`}
+      >
         {valor}
         {unidad && (
           <span className="ml-1 text-xs font-semibold text-slate-400">
@@ -446,7 +448,6 @@ function KpiCard({
   );
 }
 
-/* ---------- Gauge ---------- */
 const GAUGE = { CX: 130, CY: 130, R: 96, GROSOR: 14, ANGULO: 220 };
 
 function gaugePolar(deg) {
@@ -469,9 +470,10 @@ function Gauge({ valor, meta, titulo, subtitulo }) {
   const tema = TEMA[estado];
 
   const clamp = (v) => Math.min(Math.max(v ?? 0, 0), 1);
-  const posRojo = clamp(meta * 0.92) * GAUGE.ANGULO;
-  const posVerde = clamp(meta * 0.99) * GAUGE.ANGULO;
-  const angulo = clamp(valor) * GAUGE.ANGULO;
+  const posRojo = 0.92 * GAUGE.ANGULO;
+  const posVerde = 0.99 * GAUGE.ANGULO;
+  const cump = valor == null ? 0 : clamp(valor / meta);
+  const angulo = cump * GAUGE.ANGULO;
   const aguja = gaugePolar(angulo);
 
   return (
@@ -559,7 +561,6 @@ function Gauge({ valor, meta, titulo, subtitulo }) {
   );
 }
 
-/* ---------- Trend Chart ---------- */
 function TrendChart({ datos, dark = false, fill = false }) {
   if (!datos.length) {
     return (
@@ -692,9 +693,9 @@ function TrendChart({ datos, dark = false, fill = false }) {
         <path
           d={pathMeta}
           fill="none"
-          stroke={dark ? "#475569" : "#94a3b8"}
-          strokeWidth="2.5"
-          strokeDasharray="6 5"
+          stroke={dark ? "#94a3b8" : "#64748b"}
+          strokeWidth="2"
+          strokeDasharray="8 6"
           strokeLinecap="round"
         />
 
@@ -738,11 +739,10 @@ function TrendChart({ datos, dark = false, fill = false }) {
   );
 }
 
-/* ---------- Safety Banner ---------- */
 function SafetyBanner({ anios, dias, dark = false }) {
   return (
     <section
-      className={`relative overflow-hidden rounded-2xl border p-6 ${
+      className={`relative flex flex-col justify-between overflow-hidden rounded-2xl border p-6 ${
         dark
           ? "border-emerald-900 bg-gradient-to-br from-emerald-950 via-slate-800 to-emerald-950"
           : "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-50"
@@ -767,109 +767,159 @@ function SafetyBanner({ anios, dias, dark = false }) {
         </div>
       </div>
 
-      <div className="mt-6 flex items-end gap-4">
-        <div>
-          <p
-            className={`text-6xl font-black tabular-nums leading-none ${
-              dark ? "text-emerald-400" : "text-emerald-700"
-            }`}
-          >
-            {anios}
-          </p>
-          <p
-            className={`mt-1 text-xs font-bold uppercase tracking-wider ${
-              dark ? "text-emerald-400" : "text-emerald-700"
-            }`}
-          >
-            {anios === 1 ? "Año" : "Años"}
-          </p>
-        </div>
-        {dias > 0 && (
-          <div className="pb-1">
+      <div className="flex flex-1 flex-col items-center justify-center py-4">
+        <div className="flex items-end justify-center gap-4">
+          <div className="text-center">
             <p
-              className={`text-4xl font-black tabular-nums leading-none ${
-                dark ? "text-emerald-500" : "text-emerald-600"
+              className={`text-7xl xl:text-8xl font-black tabular-nums leading-none ${
+                dark ? "text-emerald-400" : "text-emerald-700"
               }`}
             >
-              +{dias}
+              {anios}
             </p>
             <p
-              className={`mt-1 text-xs font-bold uppercase tracking-wider ${
-                dark ? "text-emerald-500" : "text-emerald-600"
+              className={`mt-2 text-xs font-bold uppercase tracking-wider ${
+                dark ? "text-emerald-400" : "text-emerald-700"
               }`}
             >
-              {dias === 1 ? "Día" : "Días"}
+              {anios === 1 ? "Año" : "Años"}
             </p>
           </div>
-        )}
+
+          {dias > 0 && (
+            <div className="text-center pb-1">
+              <p
+                className={`text-5xl xl:text-6xl font-black tabular-nums leading-none ${
+                  dark ? "text-emerald-500" : "text-emerald-600"
+                }`}
+              >
+                +{dias}
+              </p>
+              <p
+                className={`mt-2 text-xs font-bold uppercase tracking-wider ${
+                  dark ? "text-emerald-500" : "text-emerald-600"
+                }`}
+              >
+                {dias === 1 ? "Día" : "Días"}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <p
-        className={`mt-4 text-[11px] font-medium ${
+        className={`text-center text-[11px] font-medium ${
           dark ? "text-emerald-500/80" : "text-emerald-700/80"
         }`}
       >
-        Record vigente desde el 19 de septiembre de 2023.
+        Record vigente desde el 19 de septiembre de 2023
       </p>
     </section>
   );
 }
 
-/* ---------- Month Selector ---------- */
 function MonthSelector({ anio, mes, rango, onChange, onRefresh, loading }) {
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onChange(-1)}
-          aria-label="Mes anterior"
-          className="h-10 w-10 rounded-lg border transition hover:bg-slate-50 focus:outline-none focus:ring-2"
-          style={{ borderColor: MARCA.primarioBorder, color: MARCA.primario }}
-        >
-          ‹
-        </button>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => onChange(-1)}
+        aria-label="Mes anterior"
+        className="h-10 w-10 rounded-lg border transition hover:bg-slate-50 focus:outline-none focus:ring-2"
+        style={{ borderColor: MARCA.primarioBorder, color: MARCA.primario }}
+      >
+        ‹
+      </button>
 
-        <div
-          className="min-w-[230px] rounded-lg border bg-white px-5 py-1.5 text-center"
-          style={{ borderColor: MARCA.primarioBorder }}
+      <div
+        className="min-w-[200px] rounded-lg border bg-white px-5 py-1.5 text-center"
+        style={{ borderColor: MARCA.primarioBorder }}
+      >
+        <p
+          className="text-base font-bold uppercase tracking-wide"
+          style={{ color: MARCA.primario }}
         >
-          <p
-            className="text-base font-bold uppercase tracking-wide"
-            style={{ color: MARCA.primario }}
-          >
-            {MESES[mes]} {anio}
+          {MESES[mes]} {anio}
+        </p>
+        {rango.fin && (
+          <p className="text-[11px] text-slate-500 tabular-nums">
+            {formatearFecha(rango.inicio)} — {formatearFecha(rango.fin)}
           </p>
-          {rango.fin && (
-            <p className="text-[11px] text-slate-500 tabular-nums">
-              {formatearFecha(rango.inicio)} — {formatearFecha(rango.fin)}
-            </p>
-          )}
-        </div>
-
-        <button
-          onClick={() => onChange(1)}
-          aria-label="Mes siguiente"
-          className="h-10 w-10 rounded-lg border transition hover:bg-slate-50 focus:outline-none focus:ring-2"
-          style={{ borderColor: MARCA.primarioBorder, color: MARCA.primario }}
-        >
-          ›
-        </button>
-
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          aria-label="Actualizar datos"
-          className="ml-2 h-10 rounded-lg px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: MARCA.primario }}
-        >
-          {loading ? "Actualizando…" : "↻ Actualizar"}
-        </button>
+        )}
       </div>
+
+      <button
+        onClick={() => onChange(1)}
+        aria-label="Mes siguiente"
+        className="h-10 w-10 rounded-lg border transition hover:bg-slate-50 focus:outline-none focus:ring-2"
+        style={{ borderColor: MARCA.primarioBorder, color: MARCA.primario }}
+      >
+        ›
+      </button>
+
+      <button
+        onClick={onRefresh}
+        disabled={loading}
+        aria-label="Actualizar datos"
+        className="ml-1 h-10 rounded-lg px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        style={{ backgroundColor: MARCA.primario }}
+      >
+        {loading ? "…" : "↻"}
+      </button>
     </div>
   );
 }
 
-/* ---------- Skeleton ---------- */
+function DayNavigator({ mes, rango, diaSeleccionado, onChange }) {
+  if (!rango.fin) return null;
+
+  const diaMax = Number(rango.fin.split("-")[2]);
+  const diaActual = diaSeleccionado ?? diaMax;
+
+  const ir = (delta) => {
+    const nuevo = diaActual + delta;
+    if (nuevo < 1 || nuevo > diaMax) return;
+    onChange(nuevo === diaMax ? null : nuevo);
+  };
+
+  const texto = diaSeleccionado
+    ? `Al ${String(diaActual).padStart(2, "0")}/${String(mes + 1).padStart(2, "0")}`
+    : "Mes completo";
+
+  return (
+    <div
+      className="flex items-center gap-1 rounded-lg border bg-white px-1 py-0.5"
+      style={{ borderColor: MARCA.primarioBorder }}
+    >
+      <button
+        onClick={() => ir(-1)}
+        disabled={diaActual <= 1}
+        aria-label="Día anterior"
+        className="flex h-8 w-8 items-center justify-center rounded-md text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-30"
+      >
+        ◀
+      </button>
+
+      <div className="min-w-[110px] text-center">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+          Producción
+        </p>
+        <p className="text-xs font-bold tabular-nums text-slate-800">
+          {texto}
+        </p>
+      </div>
+
+      <button
+        onClick={() => ir(1)}
+        disabled={diaActual >= diaMax}
+        aria-label="Día siguiente"
+        className="flex h-8 w-8 items-center justify-center rounded-md text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-30"
+      >
+        ▶
+      </button>
+    </div>
+  );
+}
+
 function Skeleton({ className = "" }) {
   return <div className={`animate-pulse rounded-lg bg-slate-100 ${className}`} />;
 }
@@ -892,7 +942,6 @@ function SkeletonDash() {
   );
 }
 
-/* ---------- Reloj en vivo ---------- */
 function RelojEnVivo() {
   const [ahora, setAhora] = useState(new Date());
 
@@ -992,15 +1041,25 @@ function produccionUltimoDia(produccionAcumulada) {
       brecha: 0,
     };
   }
-  const ultimo = produccionAcumulada[produccionAcumulada.length - 1];
-  const metaDia = ultimo.meta;
-  const realDia = ultimo.real;
+
+  let ultimo = null;
+  for (let i = produccionAcumulada.length - 1; i >= 0; i--) {
+    const fila = produccionAcumulada[i];
+    if (Number(fila.real) > 0 || Number(fila.meta) > 0) {
+      ultimo = fila;
+      break;
+    }
+  }
+  if (!ultimo) ultimo = produccionAcumulada[produccionAcumulada.length - 1];
+
+  const metaDia = Number(ultimo.meta) || 0;
+  const realDia = Number(ultimo.real) || 0;
   const cumplimientoDia = metaDia > 0 ? realDia / metaDia : null;
   const brechaDia = realDia - metaDia;
 
   return {
     fecha: ultimo.fecha,
-    dia: ultimo.dia,
+    dia: Number(ultimo.dia) || null,
     meta: metaDia,
     real: realDia,
     cumplimiento: cumplimientoDia,
@@ -1012,7 +1071,6 @@ function produccionUltimoDia(produccionAcumulada) {
    7. COMPONENTES EXCLUSIVOS MODO TV
 ========================================================= */
 
-/* ---------- KPI grande para TV ---------- */
 function KpiTV({ titulo, valor, unidad, estado = "gris" }) {
   const tema = TEMA[estado];
   return (
@@ -1032,7 +1090,6 @@ function KpiTV({ titulo, valor, unidad, estado = "gris" }) {
   );
 }
 
-/* ---------- Sub-KPI grande ---------- */
 function SubKpiTV({ titulo, valor, estado = "gris", variacion }) {
   const tema = TEMA[estado];
   const flecha = variacion == null ? null : variacion >= 0 ? "▲" : "▼";
@@ -1064,7 +1121,6 @@ function SubKpiTV({ titulo, valor, estado = "gris", variacion }) {
   );
 }
 
-/* ---------- Gauge TV que se adapta al contenedor ---------- */
 function GaugeTV({ valor, meta }) {
   const clamp = (v) => Math.min(Math.max(v ?? 0, 0), 1);
   const ANGULO = 220;
@@ -1082,9 +1138,10 @@ function GaugeTV({ valor, meta }) {
     return `M ${s.x} ${s.y} A ${R} ${R} 0 ${large} 1 ${e.x} ${e.y}`;
   };
 
-  const posRojo = clamp(meta * 0.92) * ANGULO;
-  const posVerde = clamp(meta * 0.99) * ANGULO;
-  const angulo = clamp(valor) * ANGULO;
+  const posRojo = 0.92 * ANGULO;
+  const posVerde = 0.99 * ANGULO;
+  const cump = valor == null ? 0 : clamp(valor / meta);
+  const angulo = cump * ANGULO;
   const aguja = polar(angulo);
 
   return (
@@ -1160,7 +1217,6 @@ function GaugeTV({ valor, meta }) {
    8. PANTALLAS DEL CARRUSEL TV
 ========================================================= */
 
-/* ---------- PANTALLA 1: SEGURIDAD ---------- */
 function PantallaSeguridad({ seguridad }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center text-center">
@@ -1206,7 +1262,6 @@ function PantallaSeguridad({ seguridad }) {
   );
 }
 
-/* ---------- PANTALLA 2: PRODUCCIÓN ---------- */
 function PantallaProduccion({
   totalActual,
   cumplimientoProd,
@@ -1215,6 +1270,7 @@ function PantallaProduccion({
   ultimoDia,
   estadoUltimoDia,
   produccionAcumulada,
+  diaSeleccionado,
 }) {
   return (
     <div className="flex h-full w-full flex-col">
@@ -1224,7 +1280,9 @@ function PantallaProduccion({
             Producción · Carretas
           </p>
           <h2 className="text-3xl font-black text-white">
-            Cumplimiento acumulado del mes
+            {diaSeleccionado
+              ? `Cumplimiento acumulado al día ${diaSeleccionado}`
+              : "Cumplimiento acumulado del mes"}
           </h2>
         </div>
         <span
@@ -1289,7 +1347,6 @@ function PantallaProduccion({
   );
 }
 
-/* ---------- PANTALLA 3: OEE ---------- */
 function PantallaOEE({ oee, estadoOEE, estadoDisp, estadoDes, estadoCal }) {
   return (
     <div className="flex h-full w-full flex-col">
@@ -1308,8 +1365,8 @@ function PantallaOEE({ oee, estadoOEE, estadoDisp, estadoDes, estadoCal }) {
         />
       </div>
 
-      <div className="flex flex-1 min-h-0 items-center justify-center gap-16">
-        <div className="h-full aspect-square max-h-full">
+      <div className="flex flex-1 min-h-0 items-center justify-center gap-12">
+        <div className="h-full max-h-[60vh] aspect-square">
           <GaugeTV valor={oee.oee} meta={METAS.OEE} />
         </div>
 
@@ -1350,7 +1407,6 @@ function PantallaOEE({ oee, estadoOEE, estadoDisp, estadoDes, estadoCal }) {
   );
 }
 
-/* ---------- PANTALLA 4: DISPONIBILIDAD ---------- */
 function PantallaDisponibilidad({ oee, estadoDisp }) {
   const lectura =
     oee.disponibilidad == null
@@ -1378,12 +1434,12 @@ function PantallaDisponibilidad({ oee, estadoDisp }) {
         />
       </div>
 
-      <div className="flex flex-1 min-h-0 items-center gap-16">
-        <div className="h-full aspect-square max-h-full">
+      <div className="flex flex-1 min-h-0 items-center justify-center gap-12">
+        <div className="h-full max-h-[60vh] aspect-square">
           <GaugeTV valor={oee.disponibilidad} meta={METAS.DISPONIBILIDAD} />
         </div>
 
-        <div className="flex-1 rounded-2xl border border-slate-700 bg-slate-800 p-8">
+        <div className="flex-1 max-w-[700px] rounded-2xl border border-slate-700 bg-slate-800 p-8">
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-400 mb-4">
             Lectura ejecutiva
           </p>
@@ -1438,6 +1494,7 @@ export default function Dashboard() {
   const hoy = useMemo(() => new Date(), []);
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth());
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
   const [modoTV, setModoTV] = useState(false);
   const [pantalla, setPantalla] = useState(0);
   const [pausado, setPausado] = useState(false);
@@ -1457,7 +1514,7 @@ export default function Dashboard() {
     loading,
     error,
     recargar,
-  } = useDashboardData(anio, mes);
+  } = useDashboardData(anio, mes, diaSeleccionado);
 
   useAutoRefresh(modoTV, recargar, 300000);
 
@@ -1511,6 +1568,7 @@ export default function Dashboard() {
     const d = new Date(anio, mes + delta, 1);
     setAnio(d.getFullYear());
     setMes(d.getMonth());
+    setDiaSeleccionado(null);
   };
 
   const sinDatos = !rango.fin;
@@ -1524,7 +1582,7 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [modoTV, pausado]);
 
-  /* Ocultar controles tras 4s de inactividad */
+  /* Ocultar controles */
   useEffect(() => {
     if (!modoTV) return;
     let timer;
@@ -1590,7 +1648,13 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <DayNavigator
+                mes={mes}
+                rango={rango}
+                diaSeleccionado={diaSeleccionado}
+                onChange={setDiaSeleccionado}
+              />
               <MonthSelector
                 anio={anio}
                 mes={mes}
@@ -1605,7 +1669,7 @@ export default function Dashboard() {
                   setPantalla(0);
                 }}
                 aria-label="Activar modo TV rotativo"
-                className="ml-1 h-10 rounded-lg px-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:opacity-90"
+                className="h-10 rounded-lg px-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:opacity-90"
                 style={{ backgroundColor: MARCA.primario }}
               >
                 📺 Modo TV
@@ -1639,21 +1703,23 @@ export default function Dashboard() {
 
           {!loading && !sinDatos && (
             <>
-              <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_1fr]">
                 <SafetyBanner
                   anios={seguridad.anios}
                   dias={seguridad.dias}
                   dark={false}
                 />
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="mb-5 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
                         Producción · Carretas
                       </p>
                       <h2 className="text-xl font-black text-slate-900">
-                        Cumplimiento acumulado del mes
+                        {diaSeleccionado
+                          ? `Cumplimiento acumulado al día ${diaSeleccionado}`
+                          : "Cumplimiento acumulado del mes"}
                       </h2>
                     </div>
                     <span
@@ -1900,10 +1966,10 @@ export default function Dashboard() {
 
   /* =========================================================
      MODO TV — CARRUSEL DE PANTALLAS COMPLETAS
+     Contenido centrado horizontalmente con max-width
   ========================================================= */
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-900 text-white">
-      {/* Barra de progreso superior */}
       {!pausado && (
         <div className="absolute top-0 left-0 right-0 z-30 h-1 bg-slate-800">
           <div
@@ -1917,7 +1983,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Header fijo */}
       <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-8 py-4">
         <div className="flex items-center gap-4">
           <div
@@ -1945,48 +2010,55 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Contenido rotativo */}
-      <div className="absolute inset-0 flex items-center justify-center px-16 pt-24 pb-24">
-        {loading ? (
-          <p className="text-slate-400 text-2xl">Cargando datos…</p>
-        ) : sinDatos ? (
-          <p className="text-slate-400 text-2xl text-center">
-            {rango.futuro
-              ? "El período seleccionado aún no ha ocurrido."
-              : "Aún no hay días cerrados para este mes."}
-          </p>
-        ) : (
-          <div
-            key={pantalla}
-            className="h-full w-full"
-            style={{ animation: "fadeIn 600ms ease-out" }}
-          >
-            {pantalla === 0 && <PantallaSeguridad seguridad={seguridad} />}
-            {pantalla === 1 && (
-              <PantallaProduccion
-                totalActual={totalActual}
-                cumplimientoProd={cumplimientoProd}
-                brechaProd={brechaProd}
-                estadoProd={estadoProd}
-                ultimoDia={ultimoDia}
-                estadoUltimoDia={estadoUltimoDia}
-                produccionAcumulada={produccionAcumulada}
-              />
-            )}
-            {pantalla === 2 && (
-              <PantallaOEE
-                oee={oee}
-                estadoOEE={estadoOEE}
-                estadoDisp={estadoDisp}
-                estadoDes={estadoDes}
-                estadoCal={estadoCal}
-              />
-            )}
-            {pantalla === 3 && (
-              <PantallaDisponibilidad oee={oee} estadoDisp={estadoDisp} />
-            )}
-          </div>
-        )}
+      {/* Contenido rotativo centrado */}
+      <div className="absolute inset-0 flex items-center justify-center px-10 pt-20 pb-20">
+        <div className="w-full max-w-[1700px] h-full">
+          {loading ? (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-slate-400 text-2xl">Cargando datos…</p>
+            </div>
+          ) : sinDatos ? (
+            <div className="flex h-full items-center justify-center">
+              <p className="text-slate-400 text-2xl text-center">
+                {rango.futuro
+                  ? "El período seleccionado aún no ha ocurrido."
+                  : "Aún no hay días cerrados para este mes."}
+              </p>
+            </div>
+          ) : (
+            <div
+              key={pantalla}
+              className="h-full w-full"
+              style={{ animation: "fadeIn 600ms ease-out" }}
+            >
+              {pantalla === 0 && <PantallaSeguridad seguridad={seguridad} />}
+              {pantalla === 1 && (
+                <PantallaProduccion
+                  totalActual={totalActual}
+                  cumplimientoProd={cumplimientoProd}
+                  brechaProd={brechaProd}
+                  estadoProd={estadoProd}
+                  ultimoDia={ultimoDia}
+                  estadoUltimoDia={estadoUltimoDia}
+                  produccionAcumulada={produccionAcumulada}
+                  diaSeleccionado={diaSeleccionado}
+                />
+              )}
+              {pantalla === 2 && (
+                <PantallaOEE
+                  oee={oee}
+                  estadoOEE={estadoOEE}
+                  estadoDisp={estadoDisp}
+                  estadoDes={estadoDes}
+                  estadoCal={estadoCal}
+                />
+              )}
+              {pantalla === 3 && (
+                <PantallaDisponibilidad oee={oee} estadoDisp={estadoDisp} />
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Controles inferiores */}
@@ -2047,7 +2119,6 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Animaciones */}
       <style>{`
         @keyframes progreso {
           from { width: 0%; }
