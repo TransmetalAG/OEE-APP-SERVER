@@ -1,5 +1,6 @@
 /* =========================================================
-   DASHBOARD EJECUTIVO DE PRODUCCIÓN
+   DASHBOARD PLANTA TRANSMETAL
+   Grupo AG · División Industrial
    Versión Senior — Enfoque industrial / directivo
    Un solo archivo: constantes + utils + hooks + UI
 ========================================================= */
@@ -35,6 +36,21 @@ const MESES = Object.freeze([
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ]);
+
+/* =========================================================
+   PALETA CORPORATIVA GRUPO AG — AZUL INDUSTRIAL
+========================================================= */
+
+const MARCA = Object.freeze({
+  primario: "#003DA5",
+  primarioDark: "#002B73",
+  primarioLight: "#E6EDF9",
+  primarioBorder: "#B3C7E6",
+  secundario: "#1E5BC6",
+  secundarioLight: "#DCE7F7",
+  gris: "#64748B",
+  grisSuave: "#94A3B8",
+});
 
 const TEMA = Object.freeze({
   verde: {
@@ -147,7 +163,7 @@ function rangoMesAnterior(anio, mes) {
 }
 
 /* =========================================================
-   3. CÁLCULO OEE (motor de tiempos)
+   3. CÁLCULO OEE
 ========================================================= */
 
 function buildCatalogoMap() {
@@ -161,7 +177,15 @@ function buildCatalogoMap() {
 }
 
 function calcularTiempos(registro, catalogoMap) {
-  const { maquina, proceso, inicio, fin, piezastotales, piezasbuenas, paros } = registro;
+  const {
+    maquina,
+    proceso,
+    inicio,
+    fin,
+    piezastotales,
+    piezasbuenas,
+    paros,
+  } = registro;
   if (!maquina || !proceso || !inicio || !fin) return null;
   if (piezastotales == null || piezasbuenas == null) return null;
 
@@ -213,7 +237,7 @@ function agregarOEE(calculos) {
 }
 
 /* =========================================================
-   4. HOOKS INTERNOS
+   4. HOOKS
 ========================================================= */
 
 function useDashboardData(anio, mes) {
@@ -244,17 +268,27 @@ function useDashboardData(anio, mes) {
     }
 
     const [reg, prod, regPrev, prodPrev] = await Promise.all([
-      supabase.from("registros").select("*")
-        .gte("fecha", rango.inicio).lte("fecha", rango.fin),
-      supabase.from("produccion_diaria")
+      supabase
+        .from("registros")
+        .select("*")
+        .gte("fecha", rango.inicio)
+        .lte("fecha", rango.fin),
+      supabase
+        .from("produccion_diaria")
         .select("fecha, meta_carretas, real_carretas")
-        .gte("fecha", rango.inicio).lte("fecha", rango.fin)
+        .gte("fecha", rango.inicio)
+        .lte("fecha", rango.fin)
         .order("fecha", { ascending: true }),
-      supabase.from("registros").select("*")
-        .gte("fecha", rangoPrev.inicio).lte("fecha", rangoPrev.fin),
-      supabase.from("produccion_diaria")
+      supabase
+        .from("registros")
+        .select("*")
+        .gte("fecha", rangoPrev.inicio)
+        .lte("fecha", rangoPrev.fin),
+      supabase
+        .from("produccion_diaria")
         .select("fecha, meta_carretas, real_carretas")
-        .gte("fecha", rangoPrev.inicio).lte("fecha", rangoPrev.fin),
+        .gte("fecha", rangoPrev.inicio)
+        .lte("fecha", rangoPrev.fin),
     ]);
 
     const errores = [reg, prod, regPrev, prodPrev].filter((r) => r.error);
@@ -312,38 +346,108 @@ function useOEE(registros, registrosPrev = []) {
   }, [registros, registrosPrev, catalogoMap]);
 }
 
+function useModoTV(activo) {
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    const entrar = async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+          setFullscreen(true);
+        }
+      } catch (err) {
+        console.warn("Fullscreen no disponible:", err);
+      }
+    };
+
+    const salir = async () => {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        }
+      } catch (err) {
+        console.warn(err);
+      }
+      setFullscreen(false);
+    };
+
+    if (activo) entrar();
+    else salir();
+  }, [activo]);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      if (!document.fullscreenElement) setFullscreen(false);
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  return fullscreen;
+}
+
+function useAutoRefresh(activo, callback, intervaloMs = 60000) {
+  useEffect(() => {
+    if (!activo) return;
+    const id = setInterval(() => callback(), intervaloMs);
+    return () => clearInterval(id);
+  }, [activo, callback, intervaloMs]);
+}
+
 /* =========================================================
    5. COMPONENTES UI
 ========================================================= */
 
 /* ---------- KPI Card ---------- */
-function KpiCard({ titulo, valor, unidad, variacion, estado = "gris", destacado = false }) {
+function KpiCard({
+  titulo,
+  valor,
+  unidad,
+  variacion,
+  estado = "gris",
+  destacado = false,
+  dark = false,
+}) {
   const tema = TEMA[estado];
   const flecha = variacion == null ? null : variacion >= 0 ? "▲" : "▼";
   const colorVar =
     variacion == null
-      ? "text-slate-400"
+      ? dark
+        ? "text-slate-500"
+        : "text-slate-400"
       : variacion >= 0
-      ? "text-emerald-600"
-      : "text-rose-600";
+      ? "text-emerald-500"
+      : "text-rose-500";
+
+  const fondo = destacado ? tema.bg : dark ? "bg-slate-800" : "bg-white";
+  const borde = dark ? "border-slate-700" : tema.border;
+  const texto = dark ? tema.text.replace("700", "400") : tema.text;
+  const tituloColor = dark ? "text-slate-400" : "text-slate-500";
 
   return (
     <div
-      className={`rounded-xl border ${tema.border} ${
-        destacado ? tema.bg : "bg-white"
-      } p-3.5 transition-shadow hover:shadow-sm`}
+      className={`rounded-xl border ${borde} ${fondo} p-3.5 transition-shadow hover:shadow-sm`}
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+        <p
+          className={`text-[10px] font-bold uppercase tracking-[0.14em] ${tituloColor}`}
+        >
           {titulo}
         </p>
         <span className={`h-1.5 w-1.5 rounded-full ${tema.dot}`} aria-hidden />
       </div>
 
-      <p className={`mt-1.5 text-2xl font-black tabular-nums tracking-tight ${tema.text}`}>
+      <p
+        className={`mt-1.5 text-2xl font-black tabular-nums tracking-tight ${texto}`}
+      >
         {valor}
         {unidad && (
-          <span className="ml-1 text-xs font-semibold text-slate-400">
+          <span
+            className={`ml-1 text-xs font-semibold ${
+              dark ? "text-slate-500" : "text-slate-400"
+            }`}
+          >
             {unidad}
           </span>
         )}
@@ -358,7 +462,7 @@ function KpiCard({ titulo, valor, unidad, variacion, estado = "gris", destacado 
   );
 }
 
-/* ---------- Gauge (velocímetro) ---------- */
+/* ---------- Gauge ---------- */
 const GAUGE = { CX: 130, CY: 130, R: 96, GROSOR: 14, ANGULO: 220 };
 
 function gaugePolar(deg) {
@@ -437,11 +541,11 @@ function Gauge({ valor, meta, titulo, subtitulo }) {
           y1={GAUGE.CY}
           x2={aguja.x}
           y2={aguja.y}
-          stroke="#0f172a"
+          stroke={MARCA.primario}
           strokeWidth="3"
           strokeLinecap="round"
         />
-        <circle cx={GAUGE.CX} cy={GAUGE.CY} r="7" fill="#0f172a" />
+        <circle cx={GAUGE.CX} cy={GAUGE.CY} r="7" fill={MARCA.primario} />
         <circle cx={GAUGE.CX} cy={GAUGE.CY} r="3" fill="white" />
 
         <text
@@ -471,11 +575,15 @@ function Gauge({ valor, meta, titulo, subtitulo }) {
   );
 }
 
-/* ---------- Trend Chart (producción acumulada) ---------- */
-function TrendChart({ datos }) {
+/* ---------- Trend Chart ---------- */
+function TrendChart({ datos, dark = false }) {
   if (!datos.length) {
     return (
-      <div className="h-56 flex items-center justify-center text-sm text-slate-400">
+      <div
+        className={`h-56 flex items-center justify-center text-sm ${
+          dark ? "text-slate-500" : "text-slate-400"
+        }`}
+      >
         Sin datos de producción en el período
       </div>
     );
@@ -506,20 +614,37 @@ function TrendChart({ datos }) {
   const last = datos[datos.length - 1];
   const brecha = last.realAcumulado - last.metaAcumulada;
 
+  const gridColor = dark ? "#334155" : "#f1f5f9";
+  const axisTextColor = dark ? "#64748b" : "#94a3b8";
+  const realColor = dark ? "#7FA6E0" : MARCA.primario;
+
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-2 text-xs">
-        <div className="flex items-center gap-5 font-medium text-slate-600">
+        <div
+          className={`flex items-center gap-5 font-medium ${
+            dark ? "text-slate-300" : "text-slate-600"
+          }`}
+        >
           <span className="inline-flex items-center gap-2">
-            <span className="w-4 h-0.5 rounded bg-slate-900" /> Real
+            <span
+              className="w-4 h-0.5 rounded"
+              style={{ backgroundColor: realColor }}
+            />{" "}
+            Real
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="w-4 h-0.5 rounded bg-slate-400" /> Meta
+            <span
+              className={`w-4 h-0.5 rounded ${
+                dark ? "bg-slate-500" : "bg-slate-400"
+              }`}
+            />{" "}
+            Meta
           </span>
         </div>
         <span
           className={`font-bold tabular-nums ${
-            brecha >= 0 ? "text-emerald-600" : "text-rose-600"
+            brecha >= 0 ? "text-emerald-500" : "text-rose-500"
           }`}
         >
           Brecha acumulada: {brecha >= 0 ? "+" : ""}
@@ -535,8 +660,12 @@ function TrendChart({ datos }) {
       >
         <defs>
           <linearGradient id="areaReal" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0f172a" stopOpacity="0.08" />
-            <stop offset="100%" stopColor="#0f172a" stopOpacity="0" />
+            <stop
+              offset="0%"
+              stopColor={realColor}
+              stopOpacity={dark ? 0.25 : 0.12}
+            />
+            <stop offset="100%" stopColor={realColor} stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -545,8 +674,21 @@ function TrendChart({ datos }) {
           const yy = y(v);
           return (
             <g key={i}>
-              <line x1={PL} x2={W - PR} y1={yy} y2={yy} stroke="#f1f5f9" strokeWidth="1" />
-              <text x={PL - 10} y={yy + 4} textAnchor="end" fontSize="11" fill="#94a3b8">
+              <line
+                x1={PL}
+                x2={W - PR}
+                y1={yy}
+                y2={yy}
+                stroke={gridColor}
+                strokeWidth="1"
+              />
+              <text
+                x={PL - 10}
+                y={yy + 4}
+                textAnchor="end"
+                fontSize="11"
+                fill={axisTextColor}
+              >
                 {numero(Math.round(v))}
               </text>
             </g>
@@ -554,14 +696,16 @@ function TrendChart({ datos }) {
         })}
 
         <path
-          d={`${pathReal} L ${x(datos.length - 1)} ${PT + AH} L ${x(0)} ${PT + AH} Z`}
+          d={`${pathReal} L ${x(datos.length - 1)} ${PT + AH} L ${x(0)} ${
+            PT + AH
+          } Z`}
           fill="url(#areaReal)"
         />
 
         <path
           d={pathMeta}
           fill="none"
-          stroke="#94a3b8"
+          stroke={dark ? "#475569" : "#94a3b8"}
           strokeWidth="2.5"
           strokeDasharray="6 5"
           strokeLinecap="round"
@@ -570,7 +714,7 @@ function TrendChart({ datos }) {
         <path
           d={pathReal}
           fill="none"
-          stroke="#0f172a"
+          stroke={realColor}
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -582,7 +726,7 @@ function TrendChart({ datos }) {
             cx={x(i)}
             cy={y(d.realAcumulado)}
             r="3.5"
-            fill="#0f172a"
+            fill={realColor}
           />
         ))}
 
@@ -608,10 +752,14 @@ function TrendChart({ datos }) {
 }
 
 /* ---------- Safety Banner ---------- */
-function SafetyBanner({ anios, dias }) {
+function SafetyBanner({ anios, dias, dark = false }) {
   return (
     <section
-      className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-50 p-6"
+      className={`relative overflow-hidden rounded-2xl border p-6 ${
+        dark
+          ? "border-emerald-900 bg-gradient-to-br from-emerald-950 via-slate-800 to-emerald-950"
+          : "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-50"
+      }`}
       aria-label="Indicador de seguridad"
     >
       <div className="flex items-center gap-3">
@@ -619,10 +767,14 @@ function SafetyBanner({ anios, dias }) {
           🛡️
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-700">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500">
             Seguridad Industrial
           </p>
-          <h3 className="text-base font-bold text-slate-800">
+          <h3
+            className={`text-base font-bold ${
+              dark ? "text-slate-100" : "text-slate-800"
+            }`}
+          >
             Días sin accidente con tiempo perdido
           </h3>
         </div>
@@ -630,26 +782,46 @@ function SafetyBanner({ anios, dias }) {
 
       <div className="mt-6 flex items-end gap-4">
         <div>
-          <p className="text-6xl font-black tabular-nums leading-none text-emerald-700">
+          <p
+            className={`text-6xl font-black tabular-nums leading-none ${
+              dark ? "text-emerald-400" : "text-emerald-700"
+            }`}
+          >
             {anios}
           </p>
-          <p className="mt-1 text-xs font-bold uppercase tracking-wider text-emerald-700">
+          <p
+            className={`mt-1 text-xs font-bold uppercase tracking-wider ${
+              dark ? "text-emerald-400" : "text-emerald-700"
+            }`}
+          >
             {anios === 1 ? "Año" : "Años"}
           </p>
         </div>
         {dias > 0 && (
           <div className="pb-1">
-            <p className="text-4xl font-black tabular-nums leading-none text-emerald-600">
+            <p
+              className={`text-4xl font-black tabular-nums leading-none ${
+                dark ? "text-emerald-500" : "text-emerald-600"
+              }`}
+            >
               +{dias}
             </p>
-            <p className="mt-1 text-xs font-bold uppercase tracking-wider text-emerald-600">
+            <p
+              className={`mt-1 text-xs font-bold uppercase tracking-wider ${
+                dark ? "text-emerald-500" : "text-emerald-600"
+              }`}
+            >
               {dias === 1 ? "Día" : "Días"}
             </p>
           </div>
         )}
       </div>
 
-      <p className="mt-4 text-[11px] font-medium text-emerald-700/80">
+      <p
+        className={`mt-4 text-[11px] font-medium ${
+          dark ? "text-emerald-500/80" : "text-emerald-700/80"
+        }`}
+      >
         Record vigente desde el 19 de septiembre de 2023.
       </p>
     </section>
@@ -657,24 +829,54 @@ function SafetyBanner({ anios, dias }) {
 }
 
 /* ---------- Month Selector ---------- */
-function MonthSelector({ anio, mes, rango, onChange, onRefresh, loading }) {
+function MonthSelector({
+  anio,
+  mes,
+  rango,
+  onChange,
+  onRefresh,
+  loading,
+  dark = false,
+}) {
+  const btnBase = dark
+    ? "border-slate-600 text-slate-300 hover:bg-slate-700"
+    : "hover:bg-slate-50";
+  const btnStyle = !dark
+    ? { borderColor: MARCA.primarioBorder, color: MARCA.primario }
+    : undefined;
+
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-2">
         <button
           onClick={() => onChange(-1)}
           aria-label="Mes anterior"
-          className="h-10 w-10 rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          className={`h-10 w-10 rounded-lg border transition focus:outline-none focus:ring-2 ${btnBase}`}
+          style={btnStyle}
         >
           ‹
         </button>
 
-        <div className="min-w-[230px] rounded-lg border border-slate-200 bg-white px-5 py-1.5 text-center">
-          <p className="text-base font-bold uppercase tracking-wide text-slate-800">
+        <div
+          className={`min-w-[230px] rounded-lg border px-5 py-1.5 text-center ${
+            dark ? "border-slate-600 bg-slate-800" : "bg-white"
+          }`}
+          style={!dark ? { borderColor: MARCA.primarioBorder } : undefined}
+        >
+          <p
+            className={`text-base font-bold uppercase tracking-wide ${
+              dark ? "text-slate-100" : ""
+            }`}
+            style={!dark ? { color: MARCA.primario } : undefined}
+          >
             {MESES[mes]} {anio}
           </p>
           {rango.fin && (
-            <p className="text-[11px] text-slate-500 tabular-nums">
+            <p
+              className={`text-[11px] tabular-nums ${
+                dark ? "text-slate-400" : "text-slate-500"
+              }`}
+            >
               {formatearFecha(rango.inicio)} — {formatearFecha(rango.fin)}
             </p>
           )}
@@ -683,7 +885,8 @@ function MonthSelector({ anio, mes, rango, onChange, onRefresh, loading }) {
         <button
           onClick={() => onChange(1)}
           aria-label="Mes siguiente"
-          className="h-10 w-10 rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          className={`h-10 w-10 rounded-lg border transition focus:outline-none focus:ring-2 ${btnBase}`}
+          style={btnStyle}
         >
           ›
         </button>
@@ -692,7 +895,8 @@ function MonthSelector({ anio, mes, rango, onChange, onRefresh, loading }) {
           onClick={onRefresh}
           disabled={loading}
           aria-label="Actualizar datos"
-          className="ml-2 h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+          className="ml-2 h-10 rounded-lg px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: MARCA.primario }}
         >
           {loading ? "Actualizando…" : "↻ Actualizar"}
         </button>
@@ -724,8 +928,43 @@ function SkeletonDash() {
   );
 }
 
+/* ---------- Reloj en vivo ---------- */
+function RelojEnVivo() {
+  const [ahora, setAhora] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setAhora(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hora = ahora.toLocaleTimeString("es-GT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const fecha = ahora.toLocaleDateString("es-GT", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div className="text-right">
+      <p className="text-3xl font-black tabular-nums leading-none text-white">
+        {hora}
+      </p>
+      <p className="text-[11px] uppercase tracking-widest text-slate-400 mt-1">
+        {fecha}
+      </p>
+    </div>
+  );
+}
+
 /* =========================================================
-   6. HELPERS DE CÁLCULO DEL DASHBOARD
+   6. HELPERS DE CÁLCULO
 ========================================================= */
 
 function calcularSeguridad(hoy) {
@@ -778,6 +1017,33 @@ function totalProduccion(produccion) {
   );
 }
 
+function produccionUltimoDia(produccionAcumulada) {
+  if (!produccionAcumulada.length) {
+    return {
+      fecha: null,
+      dia: null,
+      meta: 0,
+      real: 0,
+      cumplimiento: null,
+      brecha: 0,
+    };
+  }
+  const ultimo = produccionAcumulada[produccionAcumulada.length - 1];
+  const metaDia = ultimo.meta;
+  const realDia = ultimo.real;
+  const cumplimientoDia = metaDia > 0 ? realDia / metaDia : null;
+  const brechaDia = realDia - metaDia;
+
+  return {
+    fecha: ultimo.fecha,
+    dia: ultimo.dia,
+    meta: metaDia,
+    real: realDia,
+    cumplimiento: cumplimientoDia,
+    brecha: brechaDia,
+  };
+}
+
 /* =========================================================
    7. DASHBOARD PRINCIPAL
 ========================================================= */
@@ -786,6 +1052,9 @@ export default function Dashboard() {
   const hoy = useMemo(() => new Date(), []);
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth());
+  const [modoTV, setModoTV] = useState(false);
+
+  useModoTV(modoTV);
 
   const {
     rango,
@@ -797,6 +1066,8 @@ export default function Dashboard() {
     error,
     recargar,
   } = useDashboardData(anio, mes);
+
+  useAutoRefresh(modoTV, recargar, 60000);
 
   const oee = useOEE(registros, registrosPrev);
 
@@ -813,6 +1084,20 @@ export default function Dashboard() {
   const cumplimientoProd = cumplimiento(totalActual.real, totalActual.meta);
   const tendenciaProd = variacion(totalActual.real, totalPrev.real);
   const brechaProd = totalActual.real - totalActual.meta;
+
+  const ultimoDia = useMemo(
+    () => produccionUltimoDia(produccionAcumulada),
+    [produccionAcumulada]
+  );
+
+  const estadoUltimoDia =
+    ultimoDia.cumplimiento == null
+      ? "gris"
+      : ultimoDia.cumplimiento >= 1
+      ? "verde"
+      : ultimoDia.cumplimiento >= 0.95
+      ? "amarillo"
+      : "rojo";
 
   const seguridad = useMemo(() => calcularSeguridad(hoy), [hoy]);
 
@@ -836,39 +1121,91 @@ export default function Dashboard() {
     setMes(d.getMonth());
   };
 
-  /* ----- Estado especial: sin datos cerrados ----- */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape" && modoTV) setModoTV(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modoTV]);
+
   const sinDatos = !rango.fin;
 
+  const fondoGeneral = modoTV ? "bg-slate-900" : "bg-slate-50";
+  const textoPrincipal = modoTV ? "text-white" : "text-slate-900";
+  const textoSuave = modoTV ? "text-slate-400" : "text-slate-500";
+  const cardBase = modoTV
+    ? "bg-slate-800 border-slate-700"
+    : "bg-white border-slate-200";
+
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">
-        {/* ===================== HEADER ===================== */}
+    <main
+      className={`min-h-screen ${fondoGeneral} transition-colors duration-300`}
+    >
+      <div
+        className={`mx-auto max-w-[1400px] transition-all duration-300 ${
+          modoTV ? "p-8 lg:p-10" : "p-4 sm:p-6 lg:p-8"
+        }`}
+      >
+        {/* HEADER */}
         <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
-              <span className="text-lg">◈</span>
+          <div className="flex items-center gap-4">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-sm"
+              style={{ backgroundColor: MARCA.primario }}
+            >
+              <span className="text-xl font-black">◈</span>
             </div>
+
             <div>
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                Tablero Ejecutivo de Producción
+              <p
+                className="text-[10px] font-bold uppercase tracking-[0.28em]"
+                style={{
+                  color: modoTV ? MARCA.primarioBorder : MARCA.primario,
+                }}
+              >
+                Grupo AG · División Industrial
+              </p>
+              <h1
+                className={`text-2xl font-black uppercase tracking-tight sm:text-3xl ${textoPrincipal}`}
+              >
+                Dashboard Planta Transmetal
               </h1>
-              <p className="text-sm text-slate-500">
+              <p className={`text-sm ${textoSuave}`}>
                 Seguridad · Producción · Eficiencia global de equipos
               </p>
             </div>
           </div>
 
-          <MonthSelector
-            anio={anio}
-            mes={mes}
-            rango={rango}
-            onChange={cambiarMes}
-            onRefresh={recargar}
-            loading={loading}
-          />
+          <div className="flex flex-col items-end gap-3">
+            {modoTV && <RelojEnVivo />}
+
+            <div className="flex items-center gap-2">
+              <MonthSelector
+                anio={anio}
+                mes={mes}
+                rango={rango}
+                onChange={cambiarMes}
+                onRefresh={recargar}
+                loading={loading}
+                dark={modoTV}
+              />
+
+              <button
+                onClick={() => setModoTV((v) => !v)}
+                aria-label={modoTV ? "Salir de modo TV" : "Activar modo TV"}
+                className={`ml-1 h-10 rounded-lg px-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:opacity-90 ${
+                  modoTV ? "bg-rose-600" : ""
+                }`}
+                style={!modoTV ? { backgroundColor: MARCA.primario } : undefined}
+              >
+                {modoTV ? "✕ Salir" : "📺 Modo TV"}
+              </button>
+            </div>
+          </div>
         </header>
 
-        {/* ===================== ERROR ===================== */}
+        {/* ERROR */}
         {error && (
           <div
             role="alert"
@@ -878,40 +1215,47 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ===================== LOADING ===================== */}
+        {/* LOADING */}
         {loading && !error && <SkeletonDash />}
 
-        {/* ===================== SIN DÍAS CERRADOS ===================== */}
+        {/* SIN DÍAS CERRADOS */}
         {!loading && sinDatos && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-            <p className="text-base font-semibold text-slate-700">
+          <div className={`rounded-2xl border p-10 text-center ${cardBase}`}>
+            <p className={`text-base font-semibold ${textoPrincipal}`}>
               {rango.futuro
                 ? "El período seleccionado aún no ha ocurrido."
                 : "Aún no hay días cerrados para este mes."}
             </p>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className={`mt-1 text-sm ${textoSuave}`}>
               Selecciona otro mes o vuelve al período actual.
             </p>
           </div>
         )}
 
-        {/* ===================== CONTENIDO ===================== */}
+        {/* CONTENIDO */}
         {!loading && !sinDatos && (
           <>
-            {/* ---------- FILA 1: SEGURIDAD + PRODUCCIÓN ---------- */}
+            {/* FILA 1 */}
             <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
               <SafetyBanner
                 anios={seguridad.anios}
                 dias={seguridad.dias}
+                dark={modoTV}
               />
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+              <div
+                className={`rounded-2xl border p-6 shadow-sm xl:col-span-2 ${cardBase}`}
+              >
                 <div className="mb-5 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                    <p
+                      className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                        modoTV ? "text-slate-400" : "text-slate-500"
+                      }`}
+                    >
                       Producción · Carretas
                     </p>
-                    <h2 className="text-xl font-black text-slate-900">
+                    <h2 className={`text-xl font-black ${textoPrincipal}`}>
                       Cumplimiento acumulado del mes
                     </h2>
                   </div>
@@ -924,19 +1268,21 @@ export default function Dashboard() {
                   </span>
                 </div>
 
-                <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                   <KpiCard
                     titulo="Real acumulado"
                     valor={numero(totalActual.real)}
                     unidad="carr."
                     variacion={tendenciaProd}
                     estado="gris"
+                    dark={modoTV}
                   />
                   <KpiCard
                     titulo="Meta acumulada"
                     valor={numero(totalActual.meta)}
                     unidad="carr."
                     estado="gris"
+                    dark={modoTV}
                   />
                   <KpiCard
                     titulo="Cumplimiento"
@@ -947,6 +1293,7 @@ export default function Dashboard() {
                     }
                     estado={estadoProd}
                     destacado
+                    dark={modoTV}
                   />
                   <KpiCard
                     titulo="Brecha"
@@ -957,24 +1304,103 @@ export default function Dashboard() {
                     }
                     unidad="carr."
                     estado={brechaProd >= 0 ? "verde" : "rojo"}
+                    dark={modoTV}
+                  />
+                  <KpiCard
+                    titulo={
+                      ultimoDia.dia
+                        ? `Día ${ultimoDia.dia} (últ. cierre)`
+                        : "Último día"
+                    }
+                    valor={
+                      ultimoDia.cumplimiento != null
+                        ? `${(ultimoDia.cumplimiento * 100).toFixed(1)}%`
+                        : "—"
+                    }
+                    unidad={
+                      ultimoDia.real
+                        ? `${numero(ultimoDia.real)}/${numero(ultimoDia.meta)}`
+                        : undefined
+                    }
+                    estado={estadoUltimoDia}
+                    destacado
+                    dark={modoTV}
                   />
                 </div>
 
-                <TrendChart datos={produccionAcumulada} />
+                {/* Franja del último cierre */}
+                {ultimoDia.fecha && (
+                  <div
+                    className={`mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${TEMA[estadoUltimoDia].border} ${TEMA[estadoUltimoDia].bg}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`h-2 w-2 rounded-full ${TEMA[estadoUltimoDia].dot}`}
+                      />
+                      <p className="text-sm font-semibold text-slate-700">
+                        Cierre del {formatearFecha(ultimoDia.fecha)}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm tabular-nums">
+                      <span className="text-slate-600">
+                        Real:{" "}
+                        <b className="text-slate-900">
+                          {numero(ultimoDia.real)}
+                        </b>{" "}
+                        carr.
+                      </span>
+                      <span className="text-slate-600">
+                        Meta:{" "}
+                        <b className="text-slate-900">
+                          {numero(ultimoDia.meta)}
+                        </b>{" "}
+                        carr.
+                      </span>
+                      <span className="text-slate-600">
+                        Cumplimiento:{" "}
+                        <b className={TEMA[estadoUltimoDia].text}>
+                          {ultimoDia.cumplimiento != null
+                            ? `${(ultimoDia.cumplimiento * 100).toFixed(1)}%`
+                            : "—"}
+                        </b>
+                      </span>
+                      <span className="text-slate-600">
+                        Brecha:{" "}
+                        <b
+                          className={
+                            ultimoDia.brecha >= 0
+                              ? "text-emerald-600"
+                              : "text-rose-600"
+                          }
+                        >
+                          {ultimoDia.brecha >= 0 ? "+" : ""}
+                          {numero(ultimoDia.brecha)}
+                        </b>
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <TrendChart datos={produccionAcumulada} dark={modoTV} />
               </div>
             </div>
 
-            {/* ---------- FILA 2: OEE + DISPONIBILIDAD ---------- */}
+            {/* FILA 2 */}
             <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
               <section
-                className={`rounded-2xl border ${TEMA[estadoOEE].border} bg-white p-6 shadow-sm`}
+                className={`rounded-2xl border p-6 shadow-sm ${cardBase} ${TEMA[estadoOEE].border}`}
               >
                 <div className="mb-2 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                    <p
+                      className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                        modoTV ? "text-slate-400" : "text-slate-500"
+                      }`}
+                    >
                       Eficiencia global
                     </p>
-                    <h2 className="text-xl font-black text-slate-900">
+                    <h2 className={`text-xl font-black ${textoPrincipal}`}>
                       OEE Global
                     </h2>
                   </div>
@@ -988,7 +1414,7 @@ export default function Dashboard() {
                   valor={oee.oee}
                   meta={METAS.OEE}
                   titulo="Overall Equipment Effectiveness"
-                  subtitulo={`Disponibilidad × Desempeño × Calidad`}
+                  subtitulo="Disponibilidad × Desempeño × Calidad"
                 />
 
                 <div className="mt-5 grid grid-cols-3 gap-3">
@@ -1001,6 +1427,7 @@ export default function Dashboard() {
                     }
                     variacion={oee.tendencia.disponibilidad}
                     estado={estadoDisp}
+                    dark={modoTV}
                   />
                   <KpiCard
                     titulo="Desempeño"
@@ -1011,6 +1438,7 @@ export default function Dashboard() {
                     }
                     variacion={oee.tendencia.desempeno}
                     estado={estadoDes}
+                    dark={modoTV}
                   />
                   <KpiCard
                     titulo="Calidad"
@@ -1021,19 +1449,24 @@ export default function Dashboard() {
                     }
                     variacion={oee.tendencia.calidad}
                     estado={estadoCal}
+                    dark={modoTV}
                   />
                 </div>
               </section>
 
               <section
-                className={`rounded-2xl border ${TEMA[estadoDisp].border} bg-white p-6 shadow-sm`}
+                className={`rounded-2xl border p-6 shadow-sm ${cardBase} ${TEMA[estadoDisp].border}`}
               >
                 <div className="mb-2 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                    <p
+                      className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                        modoTV ? "text-slate-400" : "text-slate-500"
+                      }`}
+                    >
                       Mantenimiento
                     </p>
-                    <h2 className="text-xl font-black text-slate-900">
+                    <h2 className={`text-xl font-black ${textoPrincipal}`}>
                       Disponibilidad Operativa
                     </h2>
                   </div>
@@ -1050,11 +1483,25 @@ export default function Dashboard() {
                   subtitulo="Indicador clave de confiabilidad"
                 />
 
-                <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                <div
+                  className={`mt-5 rounded-xl border p-4 ${
+                    modoTV
+                      ? "border-slate-700 bg-slate-800/60"
+                      : "border-slate-200 bg-slate-50"
+                  }`}
+                >
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-[0.14em] ${
+                      modoTV ? "text-slate-400" : "text-slate-500"
+                    }`}
+                  >
                     Lectura ejecutiva
                   </p>
-                  <p className="mt-1 text-sm text-slate-700">
+                  <p
+                    className={`mt-1 text-sm ${
+                      modoTV ? "text-slate-300" : "text-slate-700"
+                    }`}
+                  >
                     {oee.disponibilidad == null
                       ? "Sin información suficiente para evaluar la disponibilidad del período."
                       : oee.disponibilidad >= METAS.DISPONIBILIDAD
@@ -1067,13 +1514,19 @@ export default function Dashboard() {
               </section>
             </div>
 
-            {/* ---------- FOOTER ---------- */}
-            <footer className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-4 text-[11px] text-slate-400">
+            {/* FOOTER */}
+            <footer
+              className={`mt-6 flex flex-wrap items-center justify-between gap-2 border-t pt-4 text-[11px] ${
+                modoTV
+                  ? "border-slate-700 text-slate-500"
+                  : "border-slate-200 text-slate-400"
+              }`}
+            >
               <span>
-                Metas: OEE {((METAS.OEE) * 100).toFixed(2)}% · Disponibilidad{" "}
-                {((METAS.DISPONIBILIDAD) * 100).toFixed(2)}% · Calidad{" "}
-                {((METAS.CALIDAD) * 100).toFixed(2)}% · Desempeño{" "}
-                {((METAS.DESEMPENO) * 100).toFixed(2)}%
+                Metas: OEE {(METAS.OEE * 100).toFixed(2)}% · Disponibilidad{" "}
+                {(METAS.DISPONIBILIDAD * 100).toFixed(2)}% · Calidad{" "}
+                {(METAS.CALIDAD * 100).toFixed(2)}% · Desempeño{" "}
+                {(METAS.DESEMPENO * 100).toFixed(2)}%
               </span>
               {rango.fin && (
                 <span className="tabular-nums">
