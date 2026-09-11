@@ -213,58 +213,6 @@ function rangoMesAnterior(anio, mes) {
   };
 }
 
-
-/* =========================================================
-   CACHE OFFLINE DEL DASHBOARD
-   Conserva el último estado válido por período seleccionado.
-========================================================= */
-
-const DASHBOARD_CACHE_VERSION = 1;
-const DASHBOARD_CACHE_PREFIX = `transmetal_dashboard_v${DASHBOARD_CACHE_VERSION}`;
-
-function dashboardCacheKey(anio, mes, diaSeleccionado) {
-  const vista = diaSeleccionado == null ? "mes" : `dia-${pad(diaSeleccionado)}`;
-  return `${DASHBOARD_CACHE_PREFIX}:${anio}-${pad(mes + 1)}:${vista}`;
-}
-
-function leerDashboardCache(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.data) return null;
-    return parsed;
-  } catch (err) {
-    console.warn("No fue posible leer el caché del Dashboard:", err);
-    return null;
-  }
-}
-
-function guardarDashboardCache(key, data) {
-  try {
-    const guardadoEn = new Date().toISOString();
-    localStorage.setItem(key, JSON.stringify({ data, guardadoEn }));
-    return guardadoEn;
-  } catch (err) {
-    console.warn("No fue posible guardar el caché del Dashboard:", err);
-    return null;
-  }
-}
-
-function formatearFechaHoraCache(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString("es-GT", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
 /* =========================================================
    3. CÁLCULO OEE
 ========================================================= */
@@ -361,64 +309,63 @@ function useDashboardData(anio, mes, diaSeleccionado = null) {
   }, [anio, mes, hoy, diaSeleccionado]);
 
   const rangoPrev = useMemo(() => rangoMesAnterior(anio, mes), [anio, mes]);
-  const cacheKey = useMemo(
-    () => dashboardCacheKey(anio, mes, diaSeleccionado),
-    [anio, mes, diaSeleccionado]
-  );
 
-  const vacio = useMemo(
-    () => ({
-      registros: [],
-      produccion: [],
-      registrosPrev: [],
-      produccionPrev: [],
-    }),
-    []
-  );
+  const cacheKey = useMemo(() => {
+    const vista = diaSeleccionado == null ? "mes" : `dia-${pad(diaSeleccionado)}`;
+    return `transmetal_dashboard:${anio}-${pad(mes + 1)}:${vista}`;
+  }, [anio, mes, diaSeleccionado]);
 
-  const [data, setData] = useState(vacio);
+  const datosVacios = {
+    registros: [],
+    produccion: [],
+    registrosPrev: [],
+    produccionPrev: [],
+  };
+
+  const leerCache = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed && parsed.data ? parsed : null;
+    } catch (err) {
+      console.warn("No se pudo leer el cache del Dashboard:", err);
+      return null;
+    }
+  }, [cacheKey]);
+
+  const [data, setData] = useState(datosVacios);
   const [estado, setEstado] = useState({
     loading: true,
     error: null,
     sinConexion: false,
     ultimaActualizacion: null,
-    usandoCache: false,
   });
 
   const cargar = useCallback(async () => {
     if (!rango.fin) {
-      setData(vacio);
+      setData(datosVacios);
       setEstado({
         loading: false,
         error: null,
         sinConexion: false,
         ultimaActualizacion: null,
-        usandoCache: false,
       });
       return;
     }
 
-    // Al entrar a un período, primero mostramos su último estado guardado.
-    // Así la TV nunca queda vacía solo porque Internet no esté disponible.
-    const cache = leerDashboardCache(cacheKey);
-    if (cache?.data) {
+    const cache = leerCache();
+
+    if (cache) {
       setData(cache.data);
       setEstado({
         loading: false,
         error: null,
         sinConexion: !navigator.onLine,
         ultimaActualizacion: cache.guardadoEn || null,
-        usandoCache: true,
       });
     } else {
-      setData(vacio);
-      setEstado({
-        loading: true,
-        error: null,
-        sinConexion: !navigator.onLine,
-        ultimaActualizacion: null,
-        usandoCache: false,
-      });
+      setEstado((prev) => ({ ...prev, loading: true, error: null }));
     }
 
     try {
@@ -450,64 +397,80 @@ function useDashboardData(anio, mes, diaSeleccionado = null) {
       const respuestas = [reg, prod, regPrev, prodPrev];
       const errores = respuestas.filter((r) => r.error);
 
-      if (errores.length === 4) {
-        console.error("Sin conexión / errores Supabase:", errores.map((e) => e.error));
-        setEstado((prev) => ({
-          ...prev,
+      if (errores.length) {
+        console.error("Errores Supabase:", errores.map((r) => r.error));
+
+        if (cache) {
+          setData(cache.data);
+          setEstado({
+            loading: false,
+            error: null,
+            sinConexion: true,
+            ultimaActualizacion: cache.guardadoEn || null,
+          });
+          return;
+        }
+
+        setEstado({
           loading: false,
+          error: "No fue posible cargar los datos y no existe una copia local para este período.",
           sinConexion: true,
-          usandoCache: !!cache?.data,
-          error: cache?.data
-            ? null
-            : "Sin conexión y todavía no hay información guardada para este período.",
-        }));
+          ultimaActualizacion: null,
+        });
         return;
       }
 
-      // Si una consulta aislada falla, conservamos esa sección desde el caché
-      // en vez de sustituirla por un arreglo vacío.
-      const base = cache?.data || vacio;
-      const nuevoData = {
-        registros: reg.error ? base.registros : reg.data || [],
-        produccion: prod.error ? base.produccion : prod.data || [],
-        registrosPrev: regPrev.error ? base.registrosPrev : regPrev.data || [],
-        produccionPrev: prodPrev.error
-          ? base.produccionPrev
-          : prodPrev.data || [],
+      const nuevosDatos = {
+        registros: reg.data || [],
+        produccion: prod.data || [],
+        registrosPrev: regPrev.data || [],
+        produccionPrev: prodPrev.data || [],
       };
 
-      setData(nuevoData);
-      const guardadoEn = guardarDashboardCache(cacheKey, nuevoData);
+      const guardadoEn = new Date().toISOString();
+      setData(nuevosDatos);
+
+      try {
+        localStorage.setItem(
+          cacheKey,
+          JSON.stringify({ data: nuevosDatos, guardadoEn })
+        );
+      } catch (err) {
+        console.warn("No se pudo guardar el cache del Dashboard:", err);
+      }
 
       setEstado({
         loading: false,
-        error: errores.length
-          ? "Algunos datos no pudieron actualizarse; se conserva la última información disponible en esas secciones."
-          : null,
+        error: null,
         sinConexion: false,
-        ultimaActualizacion: guardadoEn || cache?.guardadoEn || null,
-        usandoCache: errores.length > 0,
+        ultimaActualizacion: guardadoEn,
       });
     } catch (err) {
       console.error("Error de conexión al cargar Dashboard:", err);
-      setEstado((prev) => ({
-        ...prev,
-        loading: false,
-        sinConexion: true,
-        usandoCache: !!cache?.data,
-        error: cache?.data
-          ? null
-          : "Sin conexión y todavía no hay información guardada para este período.",
-      }));
+
+      if (cache) {
+        setData(cache.data);
+        setEstado({
+          loading: false,
+          error: null,
+          sinConexion: true,
+          ultimaActualizacion: cache.guardadoEn || null,
+        });
+      } else {
+        setEstado({
+          loading: false,
+          error: "Sin conexión y todavía no hay información guardada para este período.",
+          sinConexion: true,
+          ultimaActualizacion: null,
+        });
+      }
     }
-  }, [rango, rangoPrev, cacheKey, vacio]);
+  }, [rango, rangoPrev, cacheKey, leerCache]);
 
   useEffect(() => {
     cargar();
   }, [cargar]);
 
-  // Si vuelve Internet, intentamos actualizar inmediatamente sin esperar
-  // al siguiente ciclo de auto-refresh.
   useEffect(() => {
     const alVolverInternet = () => cargar();
     window.addEventListener("online", alVolverInternet);
@@ -1855,9 +1818,6 @@ export default function Dashboard() {
     produccionPrev,
     loading,
     error,
-    sinConexion,
-    ultimaActualizacion,
-    usandoCache,
     recargar,
   } = useDashboardData(anio, mes, diaSeleccionado);
 
@@ -2045,22 +2005,6 @@ export default function Dashboard() {
               />
             </div>
           </header>
-
-          {sinConexion && !sinDatos && (
-            <div
-              role="status"
-              className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-            >
-              <span className="font-bold">
-                ⚠ Sin conexión · Mostrando última información disponible
-              </span>
-              {ultimaActualizacion && (
-                <span className="text-xs font-semibold text-amber-700 tabular-nums">
-                  Última actualización: {formatearFechaHoraCache(ultimaActualizacion)}
-                </span>
-              )}
-            </div>
-          )}
 
           {error && (
             <div
@@ -2437,24 +2381,6 @@ export default function Dashboard() {
           <RelojEnVivo claro />
         </header>
 
-        {sinConexion && !sinDatos && (
-          <div
-            className="absolute left-1/2 z-40 -translate-x-1/2 rounded-full border border-amber-300 bg-amber-50/95 font-bold text-amber-900 shadow-lg backdrop-blur"
-            style={{
-              top: "9.5vh",
-              padding: "0.7vh 1.2vw",
-              fontSize: "clamp(0.65rem, 1.35vh, 1rem)",
-            }}
-          >
-            ⚠ Sin conexión · Mostrando última información disponible
-            {ultimaActualizacion && (
-              <span className="ml-2 font-semibold text-amber-700">
-                · {formatearFechaHoraCache(ultimaActualizacion)}
-              </span>
-            )}
-          </div>
-        )}
-
         {/* Contenido rotativo */}
         <div
           className="relative flex min-h-0 w-full items-center justify-center"
@@ -2611,3 +2537,4 @@ export default function Dashboard() {
     </main>,
     document.body
   );
+}
