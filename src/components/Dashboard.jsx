@@ -734,7 +734,8 @@ function TrendChart({ datos, dark = false, fill = false }) {
         ))}
 
         {datos.map((d, i) => {
-          const mostrar = i === 0 || i === datos.length - 1 || i % 5 === 0;
+          const paso = datos.length <= 10 ? 2 : 5;
+          const mostrar = i === 0 || i === datos.length - 1 || i % paso === 0;
           if (!mostrar) return null;
           return (
             <text
@@ -1525,7 +1526,10 @@ function PantallaOEE({ oee, estadoOEE, estadoDisp, estadoDes, estadoCal }) {
         </div>
         <span
           className={`rounded-full ${TEMA_TV[estadoOEE].dot}`}
-          style={{ width: "clamp(0.75rem, 1.6vh, 1.25rem)", height: "clamp(0.75rem, 1.6vh, 1.25rem)" }}
+          style={{
+            width: "clamp(0.75rem, 1.6vh, 1.25rem)",
+            height: "clamp(0.75rem, 1.6vh, 1.25rem)",
+          }}
           aria-hidden
         />
       </div>
@@ -1607,7 +1611,10 @@ function PantallaDisponibilidad({ oee, estadoDisp }) {
         </div>
         <span
           className={`rounded-full ${TEMA_TV[estadoDisp].dot}`}
-          style={{ width: "clamp(0.75rem, 1.6vh, 1.25rem)", height: "clamp(0.75rem, 1.6vh, 1.25rem)" }}
+          style={{
+            width: "clamp(0.75rem, 1.6vh, 1.25rem)",
+            height: "clamp(0.75rem, 1.6vh, 1.25rem)",
+          }}
           aria-hidden
         />
       </div>
@@ -2192,11 +2199,11 @@ export default function Dashboard() {
   }
 
   /* =========================================================
-     MODO TV — CARRUSEL ADAPTATIVO CLARO CORPORATIVO
+     MODO TV — GRID CENTRADO Y ADAPTATIVO
   ========================================================= */
   return (
     <main
-      className="relative h-[100dvh] w-screen overflow-hidden"
+      className="relative h-[100dvh] w-full overflow-hidden"
       style={{ background: TV.bgGrad, color: TV.textoPrimario }}
     >
       {/* Barra de progreso */}
@@ -2216,114 +2223,126 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Header azul corporativo */}
-      <header
-        className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between"
-        style={{
-          padding: "1.5vh 2vw",
-          backgroundColor: TV.headerBg,
-          borderBottom: `3px solid ${TV.acento}`,
-        }}
-      >
-        <div className="flex items-center" style={{ gap: "1vw" }}>
-          <div
-            className="flex items-center justify-center rounded-xl"
-            style={{
-              width: "clamp(2.5rem, 4vh, 4rem)",
-              height: "clamp(2.5rem, 4vh, 4rem)",
-              backgroundColor: TV.acento,
-              color: TV.headerBg,
-            }}
-          >
-            <span
-              className="font-black"
-              style={{ fontSize: "clamp(1rem, 2vh, 1.75rem)" }}
-            >
-              ◈
-            </span>
-          </div>
-          <div>
-            <p
-              className="font-bold uppercase"
-              style={{
-                color: TV.acento,
-                fontSize: "clamp(0.6rem, 1.2vh, 0.9rem)",
-                letterSpacing: "0.28em",
-              }}
-            >
-              Grupo AG · Planta Transmetal
-            </p>
-            <p
-              style={{
-                color: TV.headerText,
-                fontSize: "clamp(0.7rem, 1.4vh, 1rem)",
-              }}
-            >
-              {MESES[mes]} {anio} · {formatearFecha(rango.inicio)} —{" "}
-              {formatearFecha(rango.fin)}
-            </p>
-          </div>
-        </div>
-
-        <RelojEnVivo claro />
-      </header>
-
-      {/* Contenido rotativo */}
+      {/* Grid: header arriba, contenido debajo */}
       <div
-        className="absolute inset-0 flex items-center justify-center"
-        style={{
-          paddingTop: "12vh",
-          paddingBottom: "10vh",
-          paddingLeft: "3vw",
-          paddingRight: "3vw",
-        }}
+        className="grid h-full w-full"
+        style={{ gridTemplateRows: "auto 1fr" }}
       >
-        <div className="mx-auto h-full w-full max-w-[1700px]">
-          {loading ? (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-slate-500 text-2xl">Cargando datos…</p>
+        {/* Header */}
+        <header
+          className="z-20 flex items-center justify-between"
+          style={{
+            padding: "1.5vh 2vw",
+            backgroundColor: TV.headerBg,
+            borderBottom: `3px solid ${TV.acento}`,
+          }}
+        >
+          <div className="flex items-center" style={{ gap: "1vw" }}>
+            <div
+              className="flex items-center justify-center rounded-xl"
+              style={{
+                width: "clamp(2.5rem, 4vh, 4rem)",
+                height: "clamp(2.5rem, 4vh, 4rem)",
+                backgroundColor: TV.acento,
+                color: TV.headerBg,
+              }}
+            >
+              <span
+                className="font-black"
+                style={{ fontSize: "clamp(1rem, 2vh, 1.75rem)" }}
+              >
+                ◈
+              </span>
             </div>
-          ) : sinDatos ? (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-slate-500 text-2xl text-center">
-                {rango.futuro
-                  ? "El período seleccionado aún no ha ocurrido."
-                  : "Aún no hay días cerrados para este mes."}
+            <div>
+              <p
+                className="font-bold uppercase"
+                style={{
+                  color: TV.acento,
+                  fontSize: "clamp(0.6rem, 1.2vh, 0.9rem)",
+                  letterSpacing: "0.28em",
+                }}
+              >
+                Grupo AG · Planta Transmetal
+              </p>
+              <p
+                style={{
+                  color: TV.headerText,
+                  fontSize: "clamp(0.7rem, 1.4vh, 1rem)",
+                }}
+              >
+                {MESES[mes]} {anio} · {formatearFecha(rango.inicio)} —{" "}
+                {formatearFecha(rango.fin)}
               </p>
             </div>
-          ) : (
-            <div
-              key={pantalla}
-              className="h-full w-full"
-              style={{ animation: "fadeIn 600ms ease-out" }}
-            >
-              {pantalla === 0 && <PantallaSeguridad seguridad={seguridad} />}
-              {pantalla === 1 && (
-                <PantallaProduccion
-                  totalActual={totalActual}
-                  cumplimientoProd={cumplimientoProd}
-                  brechaProd={brechaProd}
-                  estadoProd={estadoProd}
-                  ultimoDia={ultimoDia}
-                  estadoUltimoDia={estadoUltimoDia}
-                  produccionAcumulada={produccionAcumulada}
-                  diaSeleccionado={diaSeleccionado}
-                />
-              )}
-              {pantalla === 2 && (
-                <PantallaOEE
-                  oee={oee}
-                  estadoOEE={estadoOEE}
-                  estadoDisp={estadoDisp}
-                  estadoDes={estadoDes}
-                  estadoCal={estadoCal}
-                />
-              )}
-              {pantalla === 3 && (
-                <PantallaDisponibilidad oee={oee} estadoDisp={estadoDisp} />
-              )}
-            </div>
-          )}
+          </div>
+
+          <RelojEnVivo claro />
+        </header>
+
+        {/* Contenido rotativo: ocupa lo que sobra del grid */}
+        <div
+          className="relative flex min-h-0 w-full items-center justify-center"
+          style={{
+            paddingLeft: "3vw",
+            paddingRight: "3vw",
+            paddingTop: "2vh",
+            paddingBottom: "10vh",
+          }}
+        >
+          <div
+            className="h-full w-full"
+            style={{
+              maxWidth: "min(1700px, 94vw)",
+              margin: "0 auto",
+            }}
+          >
+            {loading ? (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-slate-500 text-2xl">Cargando datos…</p>
+              </div>
+            ) : sinDatos ? (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-slate-500 text-2xl text-center">
+                  {rango.futuro
+                    ? "El período seleccionado aún no ha ocurrido."
+                    : "Aún no hay días cerrados para este mes."}
+                </p>
+              </div>
+            ) : (
+              <div
+                key={pantalla}
+                className="flex h-full w-full items-stretch"
+                style={{ animation: "fadeIn 600ms ease-out" }}
+              >
+                {pantalla === 0 && <PantallaSeguridad seguridad={seguridad} />}
+                {pantalla === 1 && (
+                  <PantallaProduccion
+                    totalActual={totalActual}
+                    cumplimientoProd={cumplimientoProd}
+                    brechaProd={brechaProd}
+                    estadoProd={estadoProd}
+                    ultimoDia={ultimoDia}
+                    estadoUltimoDia={estadoUltimoDia}
+                    produccionAcumulada={produccionAcumulada}
+                    diaSeleccionado={diaSeleccionado}
+                  />
+                )}
+                {pantalla === 2 && (
+                  <PantallaOEE
+                    oee={oee}
+                    estadoOEE={estadoOEE}
+                    estadoDisp={estadoDisp}
+                    estadoDes={estadoDes}
+                    estadoCal={estadoCal}
+                  />
+                )}
+                {pantalla === 3 && (
+                  <PantallaDisponibilidad oee={oee} estadoDisp={estadoDisp} />
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
