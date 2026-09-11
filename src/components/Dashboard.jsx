@@ -49,6 +49,7 @@ const MARCA = Object.freeze({
   secundarioLight: "#DCE7F7",
   gris: "#64748B",
   grisSuave: "#94A3B8",
+  acento: "#F5C518",
 });
 
 const TEMA = Object.freeze({
@@ -83,6 +84,54 @@ const TEMA = Object.freeze({
 });
 
 /* =========================================================
+   TEMA MODO TV — CLARO CORPORATIVO GRUPO AG
+========================================================= */
+
+const TV = Object.freeze({
+  bg: "#F5F8FC",
+  bgGrad: "linear-gradient(135deg, #F5F8FC 0%, #E6EDF9 50%, #F5F8FC 100%)",
+  headerBg: "#003DA5",
+  headerText: "#FFFFFF",
+  acento: "#F5C518",
+  panel: "#FFFFFF",
+  panelBorder: "#B3C7E6",
+  textoPrimario: "#001F4D",
+  textoSecundario: "#64748B",
+  textoMuted: "#94A3B8",
+});
+
+const TEMA_TV = Object.freeze({
+  verde: {
+    text: "text-emerald-700",
+    bg: "bg-emerald-50",
+    border: "border-emerald-300",
+    badge: "bg-emerald-100 text-emerald-800",
+    dot: "bg-emerald-500",
+  },
+  amarillo: {
+    text: "text-amber-700",
+    bg: "bg-amber-50",
+    border: "border-amber-300",
+    badge: "bg-amber-100 text-amber-800",
+    dot: "bg-amber-500",
+  },
+  rojo: {
+    text: "text-rose-700",
+    bg: "bg-rose-50",
+    border: "border-rose-300",
+    badge: "bg-rose-100 text-rose-800",
+    dot: "bg-rose-500",
+  },
+  gris: {
+    text: "text-slate-600",
+    bg: "bg-slate-50",
+    border: "border-slate-300",
+    badge: "bg-slate-100 text-slate-700",
+    dot: "bg-slate-400",
+  },
+});
+
+/* =========================================================
    2. UTILIDADES
 ========================================================= */
 
@@ -92,7 +141,9 @@ const fechaISO = (a, m, d) => `${a}-${pad(m + 1)}-${pad(d)}`;
 
 const formatearFecha = (f) => {
   if (!f) return "—";
-  const [a, m, d] = f.split("-");
+  const partes = f.split("-");
+  if (partes.length !== 3) return "—";
+  const [a, m, d] = partes;
   return `${d}/${m}/${a}`;
 };
 
@@ -175,6 +226,8 @@ function buildCatalogoMap() {
   return map;
 }
 
+const CATALOGO_MAP = buildCatalogoMap();
+
 function calcularTiempos(registro, catalogoMap) {
   const {
     maquina,
@@ -187,6 +240,7 @@ function calcularTiempos(registro, catalogoMap) {
   } = registro;
   if (!maquina || !proceso || !inicio || !fin) return null;
   if (piezastotales == null || piezasbuenas == null) return null;
+  if (!/^\d{2}:\d{2}$/.test(inicio) || !/^\d{2}:\d{2}$/.test(fin)) return null;
 
   const eph =
     catalogoMap.get(`${normalize(maquina)}|${normalize(proceso)}`)?.eph || 1;
@@ -212,6 +266,7 @@ function calcularTiempos(registro, catalogoMap) {
   return { tiempoProgramado, tiempoOperativo, tiempoOperativoNeto, tiempoUtil };
 }
 
+/* OEE agregado por tiempos (no promedio de ratios) */
 function agregarOEE(calculos) {
   let tp = 0, to = 0, ton = 0, tu = 0;
   calculos.forEach((c) => {
@@ -281,7 +336,8 @@ function useDashboardData(anio, mes, diaSeleccionado = null) {
         .from("registros")
         .select("*")
         .gte("fecha", rango.inicio)
-        .lte("fecha", rango.fin),
+        .lte("fecha", rango.fin)
+        .order("fecha", { ascending: true }),
       supabase
         .from("produccion_diaria")
         .select("fecha, meta_carretas, real_carretas")
@@ -330,14 +386,12 @@ function useDashboardData(anio, mes, diaSeleccionado = null) {
 }
 
 function useOEE(registros, registrosPrev = []) {
-  const catalogoMap = useMemo(buildCatalogoMap, []);
-
   return useMemo(() => {
     const actuales = registros
-      .map((r) => calcularTiempos(r, catalogoMap))
+      .map((r) => calcularTiempos(r, CATALOGO_MAP))
       .filter(Boolean);
     const anteriores = registrosPrev
-      .map((r) => calcularTiempos(r, catalogoMap))
+      .map((r) => calcularTiempos(r, CATALOGO_MAP))
       .filter(Boolean);
 
     const kpis = agregarOEE(actuales);
@@ -352,50 +406,20 @@ function useOEE(registros, registrosPrev = []) {
         calidad: variacion(kpis.calidad, kpisPrev.calidad),
       },
     };
-  }, [registros, registrosPrev, catalogoMap]);
-}
-
-function useModoTV(activo) {
-  const [, setFullscreen] = useState(false);
-
-  useEffect(() => {
-    const entrar = async () => {
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-          setFullscreen(true);
-        }
-      } catch (err) {
-        console.warn("Fullscreen no disponible:", err);
-      }
-    };
-    const salir = async () => {
-      try {
-        if (document.fullscreenElement) await document.exitFullscreen();
-      } catch (err) {
-        console.warn(err);
-      }
-      setFullscreen(false);
-    };
-    if (activo) entrar();
-    else salir();
-  }, [activo]);
-
-  useEffect(() => {
-    const onFsChange = () => {
-      if (!document.fullscreenElement) setFullscreen(false);
-    };
-    document.addEventListener("fullscreenchange", onFsChange);
-    return () => document.removeEventListener("fullscreenchange", onFsChange);
-  }, []);
+  }, [registros, registrosPrev]);
 }
 
 function useAutoRefresh(activo, callback, intervaloMs = 300000) {
+  const cbRef = React.useRef(callback);
+  useEffect(() => {
+    cbRef.current = callback;
+  }, [callback]);
+
   useEffect(() => {
     if (!activo) return;
-    const id = setInterval(() => callback(), intervaloMs);
+    const id = setInterval(() => cbRef.current(), intervaloMs);
     return () => clearInterval(id);
-  }, [activo, callback, intervaloMs]);
+  }, [activo, intervaloMs]);
 }
 
 /* =========================================================
@@ -605,18 +629,14 @@ function TrendChart({ datos, dark = false, fill = false }) {
   const last = datos[datos.length - 1];
   const brecha = last.realAcumulado - last.metaAcumulada;
 
-  const gridColor = dark ? "#334155" : "#f1f5f9";
-  const axisTextColor = dark ? "#64748b" : "#94a3b8";
-  const realColor = dark ? "#7FA6E0" : MARCA.primario;
+  const gridColor = "#f1f5f9";
+  const axisTextColor = "#94a3b8";
+  const realColor = MARCA.primario;
 
   return (
     <div className={`w-full ${fill ? "h-full flex flex-col" : ""}`}>
       <div className="flex items-center justify-between mb-2 text-xs shrink-0">
-        <div
-          className={`flex items-center gap-5 font-medium ${
-            dark ? "text-slate-300" : "text-slate-600"
-          }`}
-        >
+        <div className="flex items-center gap-5 font-medium text-slate-600">
           <span className="inline-flex items-center gap-2">
             <span
               className="w-4 h-0.5 rounded"
@@ -625,12 +645,7 @@ function TrendChart({ datos, dark = false, fill = false }) {
             Real
           </span>
           <span className="inline-flex items-center gap-2">
-            <span
-              className={`w-4 h-0.5 rounded ${
-                dark ? "bg-slate-500" : "bg-slate-400"
-              }`}
-            />{" "}
-            Meta
+            <span className="w-4 h-0.5 rounded bg-slate-400" /> Meta
           </span>
         </div>
         <span
@@ -652,11 +667,7 @@ function TrendChart({ datos, dark = false, fill = false }) {
       >
         <defs>
           <linearGradient id="areaReal" x1="0" y1="0" x2="0" y2="1">
-            <stop
-              offset="0%"
-              stopColor={realColor}
-              stopOpacity={dark ? 0.25 : 0.12}
-            />
+            <stop offset="0%" stopColor={realColor} stopOpacity="0.12" />
             <stop offset="100%" stopColor={realColor} stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -697,7 +708,7 @@ function TrendChart({ datos, dark = false, fill = false }) {
         <path
           d={pathMeta}
           fill="none"
-          stroke={dark ? "#94a3b8" : "#64748b"}
+          stroke="#64748b"
           strokeWidth="2"
           strokeDasharray="8 6"
           strokeLinecap="round"
@@ -714,7 +725,7 @@ function TrendChart({ datos, dark = false, fill = false }) {
 
         {datos.map((d, i) => (
           <circle
-            key={`r-${d.fecha}`}
+            key={`r-${d.fecha}-${i}`}
             cx={x(i)}
             cy={y(d.realAcumulado)}
             r="3.5"
@@ -727,7 +738,7 @@ function TrendChart({ datos, dark = false, fill = false }) {
           if (!mostrar) return null;
           return (
             <text
-              key={`x-${d.fecha}`}
+              key={`x-${d.fecha}-${i}`}
               x={x(i)}
               y={H - 12}
               textAnchor="middle"
@@ -743,7 +754,7 @@ function TrendChart({ datos, dark = false, fill = false }) {
   );
 }
 
-/* ---------- Safety Banner (Título + números GIGANTES) ---------- */
+/* ---------- Safety Banner (modo normal) ---------- */
 function SafetyBanner({ anios, dias, dark = false }) {
   return (
     <section
@@ -754,7 +765,6 @@ function SafetyBanner({ anios, dias, dark = false }) {
       }`}
       aria-label="Tiempo sin Accidentes CPT"
     >
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white text-lg shadow-sm">
           🛡️
@@ -773,7 +783,6 @@ function SafetyBanner({ anios, dias, dark = false }) {
         </div>
       </div>
 
-      {/* Números GIGANTES */}
       <div className="flex flex-1 flex-col items-center justify-center py-3">
         <p
           className={`text-[9rem] sm:text-[11rem] xl:text-[13rem] font-black tabular-nums leading-[0.85] ${
@@ -810,7 +819,6 @@ function SafetyBanner({ anios, dias, dark = false }) {
         )}
       </div>
 
-      {/* Footer */}
       <p
         className={`text-center text-[11px] font-medium ${
           dark ? "text-emerald-500/80" : "text-emerald-700/80"
@@ -863,7 +871,7 @@ function MonthSelector({ anio, mes, rango, onChange, onRefresh, loading }) {
       <button
         onClick={onRefresh}
         disabled={loading}
-        aria-label="Actualizar datos"
+        aria-label={loading ? "Cargando datos" : "Actualizar datos"}
         className="ml-1 h-10 rounded-lg px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
         style={{ backgroundColor: MARCA.primario }}
       >
@@ -931,16 +939,15 @@ function DayNavigator({ mes, rango, diaSeleccionado, onChange }) {
         ▶
       </button>
 
-      {/* Botón "Hoy" — aparece solo cuando estás en un día específico */}
       {!enMesCompleto && (
         <button
           onClick={() => onChange(null)}
-          aria-label="Volver al último día cerrado"
+          aria-label="Volver al mes completo"
           className="ml-1 flex h-9 items-center gap-1 rounded-md px-3 text-[10px] font-bold uppercase tracking-wider text-white transition hover:opacity-90"
           style={{ backgroundColor: MARCA.primario }}
-          title="Volver al último día cerrado (ayer)"
+          title="Volver a mostrar el mes completo"
         >
-          ⏮ Hoy
+          ⏮ Mes
         </button>
       )}
     </div>
@@ -953,7 +960,7 @@ function Skeleton({ className = "" }) {
 
 function SkeletonDash() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
       <Skeleton className="h-24" />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <Skeleton className="h-72" />
@@ -969,7 +976,7 @@ function SkeletonDash() {
   );
 }
 
-function RelojEnVivo() {
+function RelojEnVivo({ claro = false }) {
   const [ahora, setAhora] = useState(new Date());
 
   useEffect(() => {
@@ -990,6 +997,29 @@ function RelojEnVivo() {
     month: "long",
     year: "numeric",
   });
+
+  if (claro) {
+    return (
+      <div className="text-right">
+        <p
+          className="font-black tabular-nums leading-none"
+          style={{ fontSize: "clamp(1.2rem, 3.5vh, 2.5rem)", color: TV.headerText }}
+        >
+          {hora}
+        </p>
+        <p
+          className="uppercase tracking-widest"
+          style={{
+            fontSize: "clamp(0.6rem, 1.2vh, 0.9rem)",
+            color: "rgba(255,255,255,0.7)",
+            marginTop: "0.25vh",
+          }}
+        >
+          {fecha}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="text-right">
@@ -1027,7 +1057,7 @@ function calcularSeguridad(fechaReferencia) {
       FECHA_ULTIMO_CPT.getDate()
     );
   }
-  const dias = Math.floor((f0 - aniv) / 86400000);
+  const dias = Math.round((f0 - aniv) / 86400000);
   return { anios, dias };
 }
 
@@ -1038,7 +1068,7 @@ function acumularProduccion(produccion) {
     const real = Number(fila.real_carretas) || 0;
     metaAcum += meta;
     realAcum += real;
-    const dia = Number(fila.fecha.split("-")[2]) || 0;
+    const dia = fila.fecha ? Number(fila.fecha.split("-")[2]) || 0 : 0;
     return {
       ...fila,
       dia,
@@ -1103,48 +1133,83 @@ function produccionUltimoDia(produccionAcumulada) {
 ========================================================= */
 
 function KpiTV({ titulo, valor, unidad, estado = "gris" }) {
-  const tema = TEMA[estado];
+  const tema = TEMA_TV[estado];
   return (
-    <div className={`rounded-2xl border-2 p-5 ${tema.border} ${tema.bg}`}>
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-2">
+    <div
+      className={`rounded-2xl border-2 ${tema.border} ${tema.bg}`}
+      style={{ padding: "1.5vh 1vw" }}
+    >
+      <p
+        className="font-bold uppercase tracking-[0.2em] text-slate-600"
+        style={{
+          fontSize: "clamp(0.6rem, 1.2vh, 0.9rem)",
+          marginBottom: "0.5vh",
+        }}
+      >
         {titulo}
       </p>
       <p
-        className={`text-4xl xl:text-5xl font-black tabular-nums tracking-tight leading-none ${tema.text}`}
+        className={`font-black tabular-nums tracking-tight leading-none ${tema.text}`}
+        style={{ fontSize: "clamp(1.5rem, 4vh, 3.5rem)" }}
       >
         {valor}
       </p>
       {unidad && (
-        <p className="mt-2 text-sm font-semibold text-slate-500">{unidad}</p>
+        <p
+          className="font-semibold text-slate-500"
+          style={{
+            fontSize: "clamp(0.65rem, 1.3vh, 1rem)",
+            marginTop: "0.5vh",
+          }}
+        >
+          {unidad}
+        </p>
       )}
     </div>
   );
 }
 
 function SubKpiTV({ titulo, valor, estado = "gris", variacion }) {
-  const tema = TEMA[estado];
+  const tema = TEMA_TV[estado];
   const flecha = variacion == null ? null : variacion >= 0 ? "▲" : "▼";
   const colorVar =
     variacion == null
       ? "text-slate-500"
       : variacion >= 0
-      ? "text-emerald-500"
-      : "text-rose-500";
+      ? "text-emerald-600"
+      : "text-rose-600";
 
   return (
     <div
-      className={`rounded-2xl border-2 p-6 min-w-[240px] ${tema.border} ${tema.bg}`}
+      className={`rounded-2xl border-2 ${tema.border} ${tema.bg}`}
+      style={{
+        padding: "2vh 1.5vw",
+        minWidth: "clamp(160px, 15vw, 260px)",
+      }}
     >
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 mb-2">
+      <p
+        className="font-bold uppercase tracking-[0.2em] text-slate-600"
+        style={{
+          fontSize: "clamp(0.65rem, 1.2vh, 0.95rem)",
+          marginBottom: "0.5vh",
+        }}
+      >
         {titulo}
       </p>
       <p
-        className={`text-5xl xl:text-6xl font-black tabular-nums leading-none ${tema.text}`}
+        className={`font-black tabular-nums leading-none ${tema.text}`}
+        style={{ fontSize: "clamp(2rem, 5.5vh, 4rem)" }}
       >
         {valor}
       </p>
       {variacion != null && (
-        <p className={`mt-2 text-sm font-bold ${colorVar}`}>
+        <p
+          className={`font-bold ${colorVar}`}
+          style={{
+            fontSize: "clamp(0.7rem, 1.4vh, 1.1rem)",
+            marginTop: "0.5vh",
+          }}
+        >
           {flecha} {(Math.abs(variacion) * 100).toFixed(1)}% vs mes ant.
         </p>
       )}
@@ -1178,13 +1243,13 @@ function GaugeTV({ valor, meta }) {
   return (
     <svg
       viewBox="0 0 260 200"
-      className="h-full w-full max-h-full"
+      className="h-full w-full"
       preserveAspectRatio="xMidYMid meet"
     >
       <path
         d={arc(0, ANGULO)}
         fill="none"
-        stroke="#334155"
+        stroke="#E2E8F0"
         strokeWidth={GROSOR}
         strokeLinecap="round"
       />
@@ -1214,18 +1279,18 @@ function GaugeTV({ valor, meta }) {
         y1={CY}
         x2={aguja.x}
         y2={aguja.y}
-        stroke={MARCA.primarioBorder}
+        stroke={TV.headerBg}
         strokeWidth="3"
         strokeLinecap="round"
       />
-      <circle cx={CX} cy={CY} r="7" fill={MARCA.primarioBorder} />
-      <circle cx={CX} cy={CY} r="3" fill="#0f172a" />
+      <circle cx={CX} cy={CY} r="7" fill={TV.headerBg} />
+      <circle cx={CX} cy={CY} r="3" fill="#FFFFFF" />
 
       <text
         x={CX}
         y={CY + 46}
         textAnchor="middle"
-        fill="#ffffff"
+        fill={TV.textoPrimario}
         style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em" }}
       >
         {valor != null ? `${(valor * 100).toFixed(1)}%` : "—"}
@@ -1235,7 +1300,7 @@ function GaugeTV({ valor, meta }) {
         x={CX}
         y={CY + 68}
         textAnchor="middle"
-        fill="#94a3b8"
+        fill={TV.textoSecundario}
         style={{ fontSize: 11, fontWeight: 600 }}
       >
         Meta {(meta * 100).toFixed(2)}%
@@ -1251,41 +1316,80 @@ function GaugeTV({ valor, meta }) {
 function PantallaSeguridad({ seguridad }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center text-center">
-      <div className="mb-6 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-4xl shadow-lg">
+      <div className="mb-[2vh] flex items-center" style={{ gap: "1.5vw" }}>
+        <div
+          className="flex items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg"
+          style={{
+            width: "clamp(3rem, 8vh, 5rem)",
+            height: "clamp(3rem, 8vh, 5rem)",
+            fontSize: "clamp(1.5rem, 4vh, 2.5rem)",
+          }}
+        >
           🛡️
         </div>
         <div className="text-left">
-          <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-400">
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-emerald-600"
+            style={{ fontSize: "clamp(0.7rem, 1.6vh, 1.1rem)" }}
+          >
             Seguridad Industrial
           </p>
-          <p className="text-xl font-bold text-slate-300">
+          <p
+            className="font-bold text-slate-800"
+            style={{ fontSize: "clamp(1rem, 2.4vh, 1.75rem)" }}
+          >
             Tiempo sin Accidentes CPT
           </p>
         </div>
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center">
-        <p className="text-[16rem] xl:text-[22rem] font-black tabular-nums leading-[0.85] text-emerald-400">
+        <p
+          className="font-black tabular-nums leading-[0.85] text-emerald-600"
+          style={{ fontSize: "min(28vh, 22vw)" }}
+        >
           {seguridad.anios}
         </p>
-        <p className="text-4xl font-bold uppercase tracking-[0.3em] text-emerald-500 mt-2">
+        <p
+          className="font-bold uppercase text-emerald-700"
+          style={{
+            fontSize: "clamp(1rem, 3vh, 3rem)",
+            letterSpacing: "0.3em",
+            marginTop: "1vh",
+          }}
+        >
           {seguridad.anios === 1 ? "Año" : "Años"}
         </p>
 
         {seguridad.dias > 0 && (
           <>
-            <p className="mt-8 text-[8rem] xl:text-[10rem] font-black tabular-nums leading-none text-emerald-500">
+            <p
+              className="font-black tabular-nums leading-none text-emerald-500"
+              style={{ fontSize: "min(12vh, 9vw)", marginTop: "3vh" }}
+            >
               +{seguridad.dias}
             </p>
-            <p className="text-3xl font-bold uppercase tracking-[0.3em] text-emerald-600 mt-2">
+            <p
+              className="font-bold uppercase text-emerald-600"
+              style={{
+                fontSize: "clamp(0.8rem, 2vh, 2rem)",
+                letterSpacing: "0.3em",
+                marginTop: "1vh",
+              }}
+            >
               {seguridad.dias === 1 ? "Día" : "Días"}
             </p>
           </>
         )}
       </div>
 
-      <p className="mt-8 text-lg text-emerald-500/80">
+      <p
+        className="text-emerald-700/80"
+        style={{
+          fontSize: "clamp(0.7rem, 1.4vh, 1.1rem)",
+          marginTop: "3vh",
+        }}
+      >
         Record vigente desde el 19 de septiembre de 2023
       </p>
     </div>
@@ -1304,19 +1408,29 @@ function PantallaProduccion({
 }) {
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-[2vh] flex items-center justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.28em] text-slate-400">
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-slate-500"
+            style={{ fontSize: "clamp(0.7rem, 1.4vh, 1rem)" }}
+          >
             Producción · Carretas
           </p>
-          <h2 className="text-3xl font-black text-white">
+          <h2
+            className="font-black text-slate-900"
+            style={{ fontSize: "clamp(1.25rem, 3.2vh, 2.25rem)" }}
+          >
             {diaSeleccionado
               ? `Cumplimiento acumulado al día ${diaSeleccionado}`
               : "Cumplimiento acumulado del mes"}
           </h2>
         </div>
         <span
-          className={`rounded-full px-5 py-2 text-2xl font-black ${TEMA[estadoProd].badge}`}
+          className={`rounded-full font-black ${TEMA_TV[estadoProd].badge}`}
+          style={{
+            padding: "0.75vh 1.25vw",
+            fontSize: "clamp(1rem, 2.4vh, 1.75rem)",
+          }}
         >
           {cumplimientoProd != null
             ? `${(cumplimientoProd * 100).toFixed(1)}%`
@@ -1324,7 +1438,13 @@ function PantallaProduccion({
         </span>
       </div>
 
-      <div className="grid grid-cols-5 gap-4 mb-6">
+      <div
+        className="grid mb-[2vh]"
+        style={{
+          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+          gap: "1vw",
+        }}
+      >
         <KpiTV
           titulo="Real acumulado"
           valor={numero(totalActual.real)}
@@ -1370,8 +1490,16 @@ function PantallaProduccion({
         />
       </div>
 
-      <div className="flex-1 min-h-0 rounded-2xl border border-slate-700 bg-slate-800 p-5">
-        <TrendChart datos={produccionAcumulada} dark={true} fill />
+      <div
+        className="flex-1 min-h-0 rounded-2xl border"
+        style={{
+          borderColor: TV.panelBorder,
+          backgroundColor: TV.panel,
+          padding: "1.5vh 1.5vw",
+          boxShadow: "0 2px 12px rgba(0, 61, 165, 0.06)",
+        }}
+      >
+        <TrendChart datos={produccionAcumulada} dark={false} fill />
       </div>
     </div>
   );
@@ -1380,27 +1508,40 @@ function PantallaProduccion({
 function PantallaOEE({ oee, estadoOEE, estadoDisp, estadoDes, estadoCal }) {
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-[1.5vh] flex items-center justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.28em] text-slate-400">
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-slate-500"
+            style={{ fontSize: "clamp(0.7rem, 1.4vh, 1rem)" }}
+          >
             Eficiencia global
           </p>
-          <h2 className="text-3xl font-black text-white">
+          <h2
+            className="font-black text-slate-900"
+            style={{ fontSize: "clamp(1.25rem, 3.2vh, 2.25rem)" }}
+          >
             OEE Global · Overall Equipment Effectiveness
           </h2>
         </div>
         <span
-          className={`h-4 w-4 rounded-full ${TEMA[estadoOEE].dot}`}
+          className={`rounded-full ${TEMA_TV[estadoOEE].dot}`}
+          style={{ width: "clamp(0.75rem, 1.6vh, 1.25rem)", height: "clamp(0.75rem, 1.6vh, 1.25rem)" }}
           aria-hidden
         />
       </div>
 
-      <div className="flex flex-1 min-h-0 items-center justify-center gap-12">
-        <div className="h-full max-h-[60vh] aspect-square">
+      <div
+        className="flex flex-1 min-h-0 items-center justify-center"
+        style={{ gap: "clamp(1.5rem, 5vw, 5rem)" }}
+      >
+        <div
+          className="h-full"
+          style={{ maxHeight: "65vh", aspectRatio: "1 / 1" }}
+        >
           <GaugeTV valor={oee.oee} meta={METAS.OEE} />
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1" style={{ gap: "1.5vh" }}>
           <SubKpiTV
             titulo="Disponibilidad"
             valor={
@@ -1449,35 +1590,69 @@ function PantallaDisponibilidad({ oee, estadoDisp }) {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-[1.5vh] flex items-center justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.28em] text-slate-400">
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-slate-500"
+            style={{ fontSize: "clamp(0.7rem, 1.4vh, 1rem)" }}
+          >
             Mantenimiento
           </p>
-          <h2 className="text-3xl font-black text-white">
+          <h2
+            className="font-black text-slate-900"
+            style={{ fontSize: "clamp(1.25rem, 3.2vh, 2.25rem)" }}
+          >
             Disponibilidad Operativa
           </h2>
         </div>
         <span
-          className={`h-4 w-4 rounded-full ${TEMA[estadoDisp].dot}`}
+          className={`rounded-full ${TEMA_TV[estadoDisp].dot}`}
+          style={{ width: "clamp(0.75rem, 1.6vh, 1.25rem)", height: "clamp(0.75rem, 1.6vh, 1.25rem)" }}
           aria-hidden
         />
       </div>
 
-      <div className="flex flex-1 min-h-0 items-center justify-center gap-12">
-        <div className="h-full max-h-[60vh] aspect-square">
+      <div
+        className="flex flex-1 min-h-0 items-center justify-center"
+        style={{ gap: "clamp(1.5rem, 5vw, 5rem)" }}
+      >
+        <div
+          className="h-full"
+          style={{ maxHeight: "65vh", aspectRatio: "1 / 1" }}
+        >
           <GaugeTV valor={oee.disponibilidad} meta={METAS.DISPONIBILIDAD} />
         </div>
 
-        <div className="flex-1 max-w-[700px] rounded-2xl border border-slate-700 bg-slate-800 p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-400 mb-4">
+        <div
+          className="flex-1 rounded-2xl border"
+          style={{
+            maxWidth: "700px",
+            borderColor: TV.panelBorder,
+            backgroundColor: TV.panel,
+            padding: "3vh 2vw",
+            boxShadow: "0 2px 12px rgba(0, 61, 165, 0.06)",
+          }}
+        >
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-slate-500"
+            style={{
+              fontSize: "clamp(0.65rem, 1.3vh, 0.95rem)",
+              marginBottom: "1.5vh",
+            }}
+          >
             Lectura ejecutiva
           </p>
-          <p className="text-3xl font-semibold leading-snug text-slate-100">
+          <p
+            className="font-semibold leading-snug text-slate-800"
+            style={{ fontSize: "clamp(1.1rem, 2.8vh, 2rem)" }}
+          >
             {lectura}
           </p>
 
-          <div className="mt-8 grid grid-cols-3 gap-4">
+          <div
+            className="grid grid-cols-3"
+            style={{ gap: "1vw", marginTop: "3vh" }}
+          >
             <SubKpiTV
               titulo="Meta"
               valor={`${(METAS.DISPONIBILIDAD * 100).toFixed(2)}%`}
@@ -1533,8 +1708,6 @@ export default function Dashboard() {
   const DURACION = 10000;
   const TOTAL_PANTALLAS = 4;
 
-  useModoTV(modoTV);
-
   const {
     rango,
     registros,
@@ -1574,11 +1747,10 @@ export default function Dashboard() {
       ? "gris"
       : ultimoDia.cumplimiento >= 1
       ? "verde"
-      : ultimoDia.cumplimiento >= 0.95
+      : ultimoDia.cumplimiento >= UMBRALES.AMARILLO
       ? "amarillo"
       : "rojo";
 
-  /* Seguridad calculada contra el fin del rango visible */
   const seguridad = useMemo(() => {
     if (!rango.fin) return calcularSeguridad(hoy);
     const [a, m, d] = rango.fin.split("-").map(Number);
@@ -1590,7 +1762,7 @@ export default function Dashboard() {
       ? "gris"
       : cumplimientoProd >= 1
       ? "verde"
-      : cumplimientoProd >= 0.95
+      : cumplimientoProd >= UMBRALES.AMARILLO
       ? "amarillo"
       : "rojo";
 
@@ -1608,6 +1780,7 @@ export default function Dashboard() {
 
   const sinDatos = !rango.fin;
 
+  /* Rotación automática */
   useEffect(() => {
     if (!modoTV || pausado) return;
     const id = setInterval(() => {
@@ -1616,6 +1789,7 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [modoTV, pausado]);
 
+  /* Controles que se ocultan */
   useEffect(() => {
     if (!modoTV) return;
     let timer;
@@ -1632,6 +1806,17 @@ export default function Dashboard() {
     };
   }, [modoTV]);
 
+  /* Salir de fullscreen cierra el modo TV */
+  useEffect(() => {
+    if (!modoTV) return;
+    const onFsChange = () => {
+      if (!document.fullscreenElement) setModoTV(false);
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, [modoTV]);
+
+  /* Teclado */
   useEffect(() => {
     if (!modoTV) return;
     const onKey = (e) => {
@@ -1657,7 +1842,6 @@ export default function Dashboard() {
       <main className="min-h-screen bg-slate-50">
         <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">
           <header className="mb-6 flex flex-col gap-4">
-            {/* Fila 1: Título + Modo TV */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div
@@ -1683,7 +1867,14 @@ export default function Dashboard() {
               </div>
 
               <button
-                onClick={() => {
+                onClick={async () => {
+                  try {
+                    if (!document.fullscreenElement) {
+                      await document.documentElement.requestFullscreen();
+                    }
+                  } catch (err) {
+                    console.warn("Fullscreen no disponible:", err);
+                  }
                   setModoTV(true);
                   setPantalla(0);
                 }}
@@ -1695,7 +1886,6 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Fila 2: Controles de navegación */}
             <div className="flex flex-wrap items-center gap-3">
               <DayNavigator
                 mes={mes}
@@ -2002,60 +2192,100 @@ export default function Dashboard() {
   }
 
   /* =========================================================
-     MODO TV — CARRUSEL CENTRADO
+     MODO TV — CARRUSEL ADAPTATIVO CLARO CORPORATIVO
   ========================================================= */
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-slate-900 text-white">
+    <main
+      className="relative h-[100dvh] w-screen overflow-hidden"
+      style={{ background: TV.bgGrad, color: TV.textoPrimario }}
+    >
+      {/* Barra de progreso */}
       {!pausado && (
-        <div className="absolute top-0 left-0 right-0 z-30 h-1 bg-slate-800">
+        <div
+          className="absolute top-0 left-0 right-0 z-30 h-1"
+          style={{ backgroundColor: TV.panelBorder }}
+        >
           <div
             key={pantalla}
             className="h-full"
             style={{
-              backgroundColor: MARCA.primario,
+              backgroundColor: TV.acento,
               animation: `progreso ${DURACION}ms linear forwards`,
             }}
           />
         </div>
       )}
 
-      <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-8 py-4">
-        <div className="flex items-center gap-4">
+      {/* Header azul corporativo */}
+      <header
+        className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between"
+        style={{
+          padding: "1.5vh 2vw",
+          backgroundColor: TV.headerBg,
+          borderBottom: `3px solid ${TV.acento}`,
+        }}
+      >
+        <div className="flex items-center" style={{ gap: "1vw" }}>
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-white"
-            style={{ backgroundColor: MARCA.primario }}
+            className="flex items-center justify-center rounded-xl"
+            style={{
+              width: "clamp(2.5rem, 4vh, 4rem)",
+              height: "clamp(2.5rem, 4vh, 4rem)",
+              backgroundColor: TV.acento,
+              color: TV.headerBg,
+            }}
           >
-            <span className="text-lg font-black">◈</span>
+            <span
+              className="font-black"
+              style={{ fontSize: "clamp(1rem, 2vh, 1.75rem)" }}
+            >
+              ◈
+            </span>
           </div>
           <div>
             <p
-              className="text-[10px] font-bold uppercase tracking-[0.28em]"
-              style={{ color: MARCA.primarioBorder }}
+              className="font-bold uppercase"
+              style={{
+                color: TV.acento,
+                fontSize: "clamp(0.6rem, 1.2vh, 0.9rem)",
+                letterSpacing: "0.28em",
+              }}
             >
               Grupo AG · Planta Transmetal
             </p>
-            <p className="text-xs text-slate-400">
+            <p
+              style={{
+                color: TV.headerText,
+                fontSize: "clamp(0.7rem, 1.4vh, 1rem)",
+              }}
+            >
               {MESES[mes]} {anio} · {formatearFecha(rango.inicio)} —{" "}
               {formatearFecha(rango.fin)}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <RelojEnVivo />
-        </div>
+        <RelojEnVivo claro />
       </header>
 
-      {/* Contenido rotativo — centrado con mx-auto */}
-      <div className="absolute inset-0 flex items-center justify-center px-10 pt-20 pb-20">
+      {/* Contenido rotativo */}
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          paddingTop: "12vh",
+          paddingBottom: "10vh",
+          paddingLeft: "3vw",
+          paddingRight: "3vw",
+        }}
+      >
         <div className="mx-auto h-full w-full max-w-[1700px]">
           {loading ? (
             <div className="flex h-full items-center justify-center">
-              <p className="text-slate-400 text-2xl">Cargando datos…</p>
+              <p className="text-slate-500 text-2xl">Cargando datos…</p>
             </div>
           ) : sinDatos ? (
             <div className="flex h-full items-center justify-center">
-              <p className="text-slate-400 text-2xl text-center">
+              <p className="text-slate-500 text-2xl text-center">
                 {rango.futuro
                   ? "El período seleccionado aún no ha ocurrido."
                   : "Aún no hay días cerrados para este mes."}
@@ -2099,16 +2329,26 @@ export default function Dashboard() {
 
       {/* Controles inferiores */}
       <div
-        className={`absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 rounded-full border border-slate-700 bg-slate-800/90 px-5 py-2 backdrop-blur transition-opacity duration-500 ${
+        className={`absolute left-1/2 z-30 flex -translate-x-1/2 items-center rounded-full transition-opacity duration-500 ${
           controlesVisibles ? "opacity-100" : "opacity-0"
         }`}
+        style={{
+          bottom: "2vh",
+          gap: "1vw",
+          padding: "0.75vh 1.5vw",
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          border: `1px solid ${TV.panelBorder}`,
+          boxShadow: "0 8px 24px rgba(0, 61, 165, 0.15)",
+          backdropFilter: "blur(8px)",
+        }}
       >
         <button
           onClick={() =>
             setPantalla((p) => (p - 1 + TOTAL_PANTALLAS) % TOTAL_PANTALLAS)
           }
           aria-label="Pantalla anterior"
-          className="text-slate-300 hover:text-white text-lg"
+          className="hover:opacity-70 text-lg"
+          style={{ color: TV.headerBg }}
         >
           ◀
         </button>
@@ -2119,11 +2359,14 @@ export default function Dashboard() {
               key={i}
               onClick={() => setPantalla(i)}
               aria-label={`Ir a pantalla ${i + 1}`}
+              aria-current={i === pantalla ? "true" : undefined}
               className={`h-2 rounded-full transition-all ${
-                i === pantalla
-                  ? "w-8 bg-white"
-                  : "w-2 bg-slate-500 hover:bg-slate-400"
+                i === pantalla ? "w-8" : "w-2 hover:opacity-70"
               }`}
+              style={{
+                backgroundColor:
+                  i === pantalla ? TV.headerBg : TV.panelBorder,
+              }}
             />
           ))}
         </div>
@@ -2131,7 +2374,8 @@ export default function Dashboard() {
         <button
           onClick={() => setPausado((p) => !p)}
           aria-label={pausado ? "Reanudar rotación" : "Pausar rotación"}
-          className="text-slate-300 hover:text-white text-sm"
+          className="hover:opacity-70 text-sm"
+          style={{ color: TV.headerBg }}
         >
           {pausado ? "▶" : "⏸"}
         </button>
@@ -2139,17 +2383,26 @@ export default function Dashboard() {
         <button
           onClick={() => setPantalla((p) => (p + 1) % TOTAL_PANTALLAS)}
           aria-label="Pantalla siguiente"
-          className="text-slate-300 hover:text-white text-lg"
+          className="hover:opacity-70 text-lg"
+          style={{ color: TV.headerBg }}
         >
           ▶
         </button>
 
-        <div className="mx-2 h-5 w-px bg-slate-600" />
+        <div className="h-5 w-px" style={{ backgroundColor: TV.panelBorder }} />
 
         <button
-          onClick={() => setModoTV(false)}
+          onClick={async () => {
+            try {
+              if (document.fullscreenElement) await document.exitFullscreen();
+            } catch (err) {
+              console.warn(err);
+            }
+            setModoTV(false);
+          }}
           aria-label="Salir de modo TV"
-          className="text-xs font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300"
+          className="text-xs font-bold uppercase tracking-wider hover:opacity-70"
+          style={{ color: "#E11D48" }}
         >
           ✕ Salir
         </button>
