@@ -10,6 +10,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../supabaseClient";
 import { catalogo } from "../data/catalogo";
 
@@ -1846,8 +1847,8 @@ export default function Dashboard() {
   ========================================================= */
   if (!modoTV) {
     return (
-      <main className="min-h-screen bg-slate-50">
-        <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">
+      <div className="w-full bg-slate-50">
+        <div className="mx-auto w-full max-w-[1400px] p-4 sm:p-6 lg:p-8">
           <header className="mb-6 flex flex-col gap-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
@@ -2194,17 +2195,23 @@ export default function Dashboard() {
             </>
           )}
         </div>
-      </main>
+      </div>
     );
   }
 
   /* =========================================================
-     MODO TV — GRID CENTRADO Y ADAPTATIVO
+     MODO TV — PORTAL A BODY, OCUPA TODO EL VIEWPORT
   ========================================================= */
-  return (
+  return createPortal(
     <main
-      className="relative h-[100dvh] w-full overflow-hidden"
-      style={{ background: TV.bgGrad, color: TV.textoPrimario }}
+      className="fixed inset-0 overflow-hidden"
+      style={{
+        background: TV.bgGrad,
+        color: TV.textoPrimario,
+        zIndex: 9999,
+        width: "100vw",
+        height: "100vh",
+      }}
     >
       {/* Barra de progreso */}
       {!pausado && (
@@ -2280,7 +2287,7 @@ export default function Dashboard() {
           <RelojEnVivo claro />
         </header>
 
-        {/* Contenido rotativo: ocupa lo que sobra del grid */}
+        {/* Contenido rotativo */}
         <div
           className="relative flex min-h-0 w-full items-center justify-center"
           style={{
@@ -2292,10 +2299,7 @@ export default function Dashboard() {
         >
           <div
             className="h-full w-full"
-            style={{
-              maxWidth: "min(1700px, 94vw)",
-              margin: "0 auto",
-            }}
+            style={{ maxWidth: "min(1700px, 94vw)", margin: "0 auto" }}
           >
             {loading ? (
               <div className="flex h-full items-center justify-center">
@@ -2383,8 +2387,7 @@ export default function Dashboard() {
                 i === pantalla ? "w-8" : "w-2 hover:opacity-70"
               }`}
               style={{
-                backgroundColor:
-                  i === pantalla ? TV.headerBg : TV.panelBorder,
+                backgroundColor: i === pantalla ? TV.headerBg : TV.panelBorder,
               }}
             />
           ))}
@@ -2437,6 +2440,7 @@ export default function Dashboard() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-    </main>
+    </main>,
+    document.body
   );
 }
