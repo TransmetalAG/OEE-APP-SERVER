@@ -1005,4 +1005,1609 @@ function MonthSelector({ anio, mes, rango, onChange, onRefresh, loading }) {
         onClick={onRefresh}
         disabled={loading}
         aria-label={loading ? "Cargando datos" : "Actualizar datos"}
-        className="ml-1 h-10 rounded-lg px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-
+        className="ml-1 h-10 rounded-lg px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        style={{ backgroundColor: MARCA.primario }}
+      >
+        {loading ? "…" : "↻"}
+      </button>
+    </div>
+  );
+}
+
+function DayNavigator({ mes, rango, diaSeleccionado, onChange }) {
+  if (!rango.fin) return null;
+
+  const diaMax = Number(rango.fin.split("-")[2]);
+  const diaActual = diaSeleccionado ?? diaMax;
+  const enMesCompleto = diaSeleccionado === null;
+
+  const ir = (delta) => {
+    const nuevo = diaActual + delta;
+    if (nuevo > diaMax) {
+      onChange(null);
+      return;
+    }
+    if (nuevo < 1) return;
+    onChange(nuevo === diaMax ? null : nuevo);
+  };
+
+  const puedeAvanzar = !enMesCompleto;
+  const puedeRetroceder = diaActual > 1 || !enMesCompleto;
+
+  const texto = enMesCompleto
+    ? "Mes completo"
+    : `Al ${String(diaActual).padStart(2, "0")}/${String(mes + 1).padStart(2, "0")}`;
+
+  return (
+    <div
+      className="flex items-center gap-1 rounded-lg border bg-white px-1 py-0.5 shadow-sm"
+      style={{ borderColor: MARCA.primarioBorder }}
+    >
+      <button
+        onClick={() => ir(-1)}
+        disabled={!puedeRetroceder}
+        aria-label="Día anterior"
+        className="flex h-9 w-9 items-center justify-center rounded-md text-sm font-bold transition hover:bg-slate-100 disabled:opacity-30"
+        style={{ color: MARCA.primario }}
+      >
+        ◀
+      </button>
+
+      <div className="min-w-[120px] px-2 text-center">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
+          Producción
+        </p>
+        <p className="text-xs font-bold tabular-nums text-slate-800">
+          {texto}
+        </p>
+      </div>
+
+      <button
+        onClick={() => ir(1)}
+        disabled={!puedeAvanzar}
+        aria-label="Día siguiente"
+        className="flex h-9 w-9 items-center justify-center rounded-md text-sm font-bold transition hover:bg-slate-100 disabled:opacity-30"
+        style={{ color: MARCA.primario }}
+      >
+        ▶
+      </button>
+
+      {!enMesCompleto && (
+        <button
+          onClick={() => onChange(null)}
+          aria-label="Volver al mes completo"
+          className="ml-1 flex h-9 items-center gap-1 rounded-md px-3 text-[10px] font-bold uppercase tracking-wider text-white transition hover:opacity-90"
+          style={{ backgroundColor: MARCA.primario }}
+          title="Volver a mostrar el mes completo"
+        >
+          ⏮ Mes
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Skeleton({ className = "" }) {
+  return <div className={`animate-pulse rounded-lg bg-slate-100 ${className}`} />;
+}
+
+function SkeletonDash() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
+      <Skeleton className="h-24" />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <Skeleton className="h-72" />
+        <div className="xl:col-span-2">
+          <Skeleton className="h-72" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <Skeleton className="h-80" />
+        <Skeleton className="h-80" />
+      </div>
+    </div>
+  );
+}
+
+function RelojEnVivo({ claro = false }) {
+  const [ahora, setAhora] = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setAhora(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const hora = ahora.toLocaleTimeString("es-GT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const fecha = ahora.toLocaleDateString("es-GT", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+  if (claro) {
+    return (
+      <div className="text-right">
+        <p
+          className="font-black tabular-nums leading-none"
+          style={{ fontSize: "clamp(1.2rem, 3.5vh, 2.5rem)", color: TV.headerText }}
+        >
+          {hora}
+        </p>
+        <p
+          className="uppercase tracking-widest"
+          style={{
+            fontSize: "clamp(0.6rem, 1.2vh, 0.9rem)",
+            color: "rgba(255,255,255,0.7)",
+            marginTop: "0.25vh",
+          }}
+        >
+          {fecha}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-right">
+      <p className="text-3xl font-black tabular-nums leading-none text-white">
+        {hora}
+      </p>
+      <p className="text-[11px] uppercase tracking-widest text-slate-400 mt-1">
+        {fecha}
+      </p>
+    </div>
+  );
+}
+
+/* =========================================================
+   6. HELPERS DE CÁLCULO
+========================================================= */
+
+function calcularSeguridad(fechaReferencia) {
+  const f0 = new Date(
+    fechaReferencia.getFullYear(),
+    fechaReferencia.getMonth(),
+    fechaReferencia.getDate()
+  );
+  let anios = f0.getFullYear() - FECHA_ULTIMO_CPT.getFullYear();
+  let aniv = new Date(
+    FECHA_ULTIMO_CPT.getFullYear() + anios,
+    FECHA_ULTIMO_CPT.getMonth(),
+    FECHA_ULTIMO_CPT.getDate()
+  );
+  if (f0 < aniv) {
+    anios -= 1;
+    aniv = new Date(
+      FECHA_ULTIMO_CPT.getFullYear() + anios,
+      FECHA_ULTIMO_CPT.getMonth(),
+      FECHA_ULTIMO_CPT.getDate()
+    );
+  }
+  const dias = Math.round((f0 - aniv) / 86400000);
+  return { anios, dias };
+}
+
+function acumularProduccion(produccion) {
+  let metaAcum = 0, realAcum = 0;
+  return produccion.map((fila) => {
+    const meta = Number(fila.meta_carretas) || 0;
+    const real = Number(fila.real_carretas) || 0;
+    metaAcum += meta;
+    realAcum += real;
+    const dia = fila.fecha ? Number(fila.fecha.split("-")[2]) || 0 : 0;
+    return {
+      ...fila,
+      dia,
+      meta,
+      real,
+      metaAcumulada: metaAcum,
+      realAcumulado: realAcum,
+    };
+  });
+}
+
+function totalProduccion(produccion) {
+  return produccion.reduce(
+    (acc, f) => {
+      acc.meta += Number(f.meta_carretas) || 0;
+      acc.real += Number(f.real_carretas) || 0;
+      return acc;
+    },
+    { meta: 0, real: 0 }
+  );
+}
+
+function produccionUltimoDia(produccionAcumulada) {
+  if (!produccionAcumulada.length) {
+    return {
+      fecha: null,
+      dia: null,
+      meta: 0,
+      real: 0,
+      cumplimiento: null,
+      brecha: 0,
+    };
+  }
+
+  let ultimo = null;
+  for (let i = produccionAcumulada.length - 1; i >= 0; i--) {
+    const fila = produccionAcumulada[i];
+    if (Number(fila.real) > 0 || Number(fila.meta) > 0) {
+      ultimo = fila;
+      break;
+    }
+  }
+  if (!ultimo) ultimo = produccionAcumulada[produccionAcumulada.length - 1];
+
+  const metaDia = Number(ultimo.meta) || 0;
+  const realDia = Number(ultimo.real) || 0;
+  const cumplimientoDia = metaDia > 0 ? realDia / metaDia : null;
+  const brechaDia = realDia - metaDia;
+
+  return {
+    fecha: ultimo.fecha,
+    dia: Number(ultimo.dia) || null,
+    meta: metaDia,
+    real: realDia,
+    cumplimiento: cumplimientoDia,
+    brecha: brechaDia,
+  };
+}
+
+/* =========================================================
+   7. COMPONENTES EXCLUSIVOS MODO TV
+========================================================= */
+
+function KpiTV({ titulo, valor, unidad, estado = "gris" }) {
+  const tema = TEMA_TV[estado];
+  return (
+    <div
+      className={`rounded-2xl border-2 ${tema.border} ${tema.bg}`}
+      style={{ padding: "1.5vh 1vw" }}
+    >
+      <p
+        className="font-bold uppercase tracking-[0.2em] text-slate-600"
+        style={{
+          fontSize: "clamp(0.6rem, 1.2vh, 0.9rem)",
+          marginBottom: "0.5vh",
+        }}
+      >
+        {titulo}
+      </p>
+      <p
+        className={`font-black tabular-nums tracking-tight leading-none ${tema.text}`}
+        style={{ fontSize: "clamp(1.5rem, 4vh, 3.5rem)" }}
+      >
+        {valor}
+      </p>
+      {unidad && (
+        <p
+          className="font-semibold text-slate-500"
+          style={{
+            fontSize: "clamp(0.65rem, 1.3vh, 1rem)",
+            marginTop: "0.5vh",
+          }}
+        >
+          {unidad}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SubKpiTV({ titulo, valor, estado = "gris", variacion }) {
+  const tema = TEMA_TV[estado];
+  const flecha = variacion == null ? null : variacion >= 0 ? "▲" : "▼";
+  const colorVar =
+    variacion == null
+      ? "text-slate-500"
+      : variacion >= 0
+      ? "text-emerald-600"
+      : "text-rose-600";
+
+  return (
+    <div
+      className={`rounded-2xl border-2 ${tema.border} ${tema.bg}`}
+      style={{
+        padding: "2vh 1.5vw",
+        minWidth: "clamp(160px, 15vw, 260px)",
+      }}
+    >
+      <p
+        className="font-bold uppercase tracking-[0.2em] text-slate-600"
+        style={{
+          fontSize: "clamp(0.65rem, 1.2vh, 0.95rem)",
+          marginBottom: "0.5vh",
+        }}
+      >
+        {titulo}
+      </p>
+      <p
+        className={`font-black tabular-nums leading-none ${tema.text}`}
+        style={{ fontSize: "clamp(2rem, 5.5vh, 4rem)" }}
+      >
+        {valor}
+      </p>
+      {variacion != null && (
+        <p
+          className={`font-bold ${colorVar}`}
+          style={{
+            fontSize: "clamp(0.7rem, 1.4vh, 1.1rem)",
+            marginTop: "0.5vh",
+          }}
+        >
+          {flecha} {(Math.abs(variacion) * 100).toFixed(1)}% vs mes ant.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function GaugeTV({ valor, meta }) {
+  const clamp = (v) => Math.min(Math.max(v ?? 0, 0), 1);
+  const ANGULO = 220;
+  const CX = 130, CY = 130, R = 96, GROSOR = 14;
+
+  const polar = (deg) => {
+    const rad = ((deg - 90 - 110) * Math.PI) / 180;
+    return { x: CX + R * Math.cos(rad), y: CY + R * Math.sin(rad) };
+  };
+
+  const arc = (start, end) => {
+    const s = polar(start);
+    const e = polar(end);
+    const large = end - start > 180 ? 1 : 0;
+    return `M ${s.x} ${s.y} A ${R} ${R} 0 ${large} 1 ${e.x} ${e.y}`;
+  };
+
+  const posRojo = 0.92 * ANGULO;
+  const posVerde = 0.99 * ANGULO;
+  const cump = valor == null ? 0 : clamp(valor / meta);
+  const angulo = cump * ANGULO;
+  const aguja = polar(angulo);
+
+  return (
+    <svg
+      viewBox="0 0 260 200"
+      className="h-full w-full"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      <path
+        d={arc(0, ANGULO)}
+        fill="none"
+        stroke="#E2E8F0"
+        strokeWidth={GROSOR}
+        strokeLinecap="round"
+      />
+      <path
+        d={arc(0, posRojo)}
+        fill="none"
+        stroke="#fb7185"
+        strokeWidth={GROSOR}
+        strokeLinecap="round"
+      />
+      <path
+        d={arc(posRojo, posVerde)}
+        fill="none"
+        stroke="#f59e0b"
+        strokeWidth={GROSOR}
+      />
+      <path
+        d={arc(posVerde, ANGULO)}
+        fill="none"
+        stroke="#10b981"
+        strokeWidth={GROSOR}
+        strokeLinecap="round"
+      />
+
+      <line
+        x1={CX}
+        y1={CY}
+        x2={aguja.x}
+        y2={aguja.y}
+        stroke={TV.headerBg}
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <circle cx={CX} cy={CY} r="7" fill={TV.headerBg} />
+      <circle cx={CX} cy={CY} r="3" fill="#FFFFFF" />
+
+      <text
+        x={CX}
+        y={CY + 46}
+        textAnchor="middle"
+        fill={TV.textoPrimario}
+        style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em" }}
+      >
+        {valor != null ? `${(valor * 100).toFixed(1)}%` : "—"}
+      </text>
+
+      <text
+        x={CX}
+        y={CY + 68}
+        textAnchor="middle"
+        fill={TV.textoSecundario}
+        style={{ fontSize: 11, fontWeight: 600 }}
+      >
+        Meta {(meta * 100).toFixed(2)}%
+      </text>
+    </svg>
+  );
+}
+
+/* =========================================================
+   8. PANTALLAS DEL CARRUSEL TV
+========================================================= */
+
+function PantallaSeguridad({ seguridad }) {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center text-center">
+      <div className="mb-[2vh] flex items-center" style={{ gap: "1.5vw" }}>
+        <div
+          className="flex items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg"
+          style={{
+            width: "clamp(3rem, 8vh, 5rem)",
+            height: "clamp(3rem, 8vh, 5rem)",
+            fontSize: "clamp(1.5rem, 4vh, 2.5rem)",
+          }}
+        >
+          🛡️
+        </div>
+        <div className="text-left">
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-emerald-600"
+            style={{ fontSize: "clamp(0.7rem, 1.6vh, 1.1rem)" }}
+          >
+            Seguridad Industrial
+          </p>
+          <p
+            className="font-bold text-slate-800"
+            style={{ fontSize: "clamp(1rem, 2.4vh, 1.75rem)" }}
+          >
+            Tiempo sin Accidentes CPT
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <p
+          className="font-black tabular-nums leading-[0.85] text-emerald-600"
+          style={{ fontSize: "min(28vh, 22vw)" }}
+        >
+          {seguridad.anios}
+        </p>
+        <p
+          className="font-bold uppercase text-emerald-700"
+          style={{
+            fontSize: "clamp(1rem, 3vh, 3rem)",
+            letterSpacing: "0.3em",
+            marginTop: "1vh",
+          }}
+        >
+          {seguridad.anios === 1 ? "Año" : "Años"}
+        </p>
+
+        {seguridad.dias > 0 && (
+          <>
+            <p
+              className="font-black tabular-nums leading-none text-emerald-500"
+              style={{ fontSize: "min(12vh, 9vw)", marginTop: "3vh" }}
+            >
+              +{seguridad.dias}
+            </p>
+            <p
+              className="font-bold uppercase text-emerald-600"
+              style={{
+                fontSize: "clamp(0.8rem, 2vh, 2rem)",
+                letterSpacing: "0.3em",
+                marginTop: "1vh",
+              }}
+            >
+              {seguridad.dias === 1 ? "Día" : "Días"}
+            </p>
+          </>
+        )}
+      </div>
+
+      <p
+        className="text-emerald-700/80"
+        style={{
+          fontSize: "clamp(0.7rem, 1.4vh, 1.1rem)",
+          marginTop: "3vh",
+        }}
+      >
+        Record vigente desde el 19 de septiembre de 2023
+      </p>
+    </div>
+  );
+}
+
+function PantallaProduccion({
+  totalActual,
+  cumplimientoProd,
+  brechaProd,
+  estadoProd,
+  ultimoDia,
+  estadoUltimoDia,
+  produccionAcumulada,
+  diaSeleccionado,
+}) {
+  return (
+    <div className="flex h-full w-full flex-col">
+      <div className="mb-[2vh] flex items-center justify-between">
+        <div>
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-slate-500"
+            style={{ fontSize: "clamp(0.7rem, 1.4vh, 1rem)" }}
+          >
+            Producción · Carretas
+          </p>
+          <h2
+            className="font-black text-slate-900"
+            style={{ fontSize: "clamp(1.25rem, 3.2vh, 2.25rem)" }}
+          >
+            {diaSeleccionado
+              ? `Cumplimiento acumulado al día ${diaSeleccionado}`
+              : "Cumplimiento acumulado del mes"}
+          </h2>
+        </div>
+        <span
+          className={`rounded-full font-black ${TEMA_TV[estadoProd].badge}`}
+          style={{
+            padding: "0.75vh 1.25vw",
+            fontSize: "clamp(1rem, 2.4vh, 1.75rem)",
+          }}
+        >
+          {cumplimientoProd != null
+            ? `${(cumplimientoProd * 100).toFixed(1)}%`
+            : "—"}
+        </span>
+      </div>
+
+      <div
+        className="grid mb-[2vh]"
+        style={{
+          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+          gap: "1vw",
+        }}
+      >
+        <KpiTV
+          titulo="Real acumulado"
+          valor={numero(totalActual.real)}
+          unidad="carretas"
+          estado="gris"
+        />
+        <KpiTV
+          titulo="Meta acumulada"
+          valor={numero(totalActual.meta)}
+          unidad="carretas"
+          estado="gris"
+        />
+        <KpiTV
+          titulo="Cumplimiento"
+          valor={
+            cumplimientoProd != null
+              ? `${(cumplimientoProd * 100).toFixed(1)}%`
+              : "—"
+          }
+          estado={estadoProd}
+        />
+        <KpiTV
+          titulo="Brecha"
+          valor={
+            brechaProd > 0 ? `+${numero(brechaProd)}` : numero(brechaProd)
+          }
+          unidad="carretas"
+          estado={brechaProd >= 0 ? "verde" : "rojo"}
+        />
+        <KpiTV
+          titulo={ultimoDia.dia ? `Día ${ultimoDia.dia} · cierre` : "Último día"}
+          valor={
+            ultimoDia.cumplimiento != null
+              ? `${(ultimoDia.cumplimiento * 100).toFixed(1)}%`
+              : "—"
+          }
+          unidad={
+            ultimoDia.real
+              ? `${numero(ultimoDia.real)}/${numero(ultimoDia.meta)}`
+              : undefined
+          }
+          estado={estadoUltimoDia}
+        />
+      </div>
+
+      <div
+        className="flex-1 min-h-0 rounded-2xl border"
+        style={{
+          borderColor: TV.panelBorder,
+          backgroundColor: TV.panel,
+          padding: "1.5vh 1.5vw",
+          boxShadow: "0 2px 12px rgba(0, 61, 165, 0.06)",
+        }}
+      >
+        <TrendChart datos={produccionAcumulada} dark={false} fill />
+      </div>
+    </div>
+  );
+}
+
+function PantallaOEE({ oee, estadoOEE, estadoDisp, estadoDes, estadoCal }) {
+  return (
+    <div className="flex h-full w-full flex-col">
+      <div className="mb-[1.5vh] flex items-center justify-between">
+        <div>
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-slate-500"
+            style={{ fontSize: "clamp(0.7rem, 1.4vh, 1rem)" }}
+          >
+            Eficiencia global
+          </p>
+          <h2
+            className="font-black text-slate-900"
+            style={{ fontSize: "clamp(1.25rem, 3.2vh, 2.25rem)" }}
+          >
+            OEE Global · Overall Equipment Effectiveness
+          </h2>
+        </div>
+        <span
+          className={`rounded-full ${TEMA_TV[estadoOEE].dot}`}
+          style={{
+            width: "clamp(0.75rem, 1.6vh, 1.25rem)",
+            height: "clamp(0.75rem, 1.6vh, 1.25rem)",
+          }}
+          aria-hidden
+        />
+      </div>
+
+      <div
+        className="flex flex-1 min-h-0 items-center justify-center"
+        style={{ gap: "clamp(1.5rem, 5vw, 5rem)" }}
+      >
+        <div
+          className="h-full"
+          style={{ maxHeight: "65vh", aspectRatio: "1 / 1" }}
+        >
+          <GaugeTV valor={oee.oee} meta={METAS.OEE} />
+        </div>
+
+        <div className="grid grid-cols-1" style={{ gap: "1.5vh" }}>
+          <SubKpiTV
+            titulo="Disponibilidad"
+            valor={
+              oee.disponibilidad != null
+                ? `${(oee.disponibilidad * 100).toFixed(1)}%`
+                : "—"
+            }
+            estado={estadoDisp}
+            variacion={oee.tendencia.disponibilidad}
+          />
+          <SubKpiTV
+            titulo="Desempeño"
+            valor={
+              oee.desempeno != null
+                ? `${(oee.desempeno * 100).toFixed(1)}%`
+                : "—"
+            }
+            estado={estadoDes}
+            variacion={oee.tendencia.desempeno}
+          />
+          <SubKpiTV
+            titulo="Calidad"
+            valor={
+              oee.calidad != null
+                ? `${(oee.calidad * 100).toFixed(1)}%`
+                : "—"
+            }
+            estado={estadoCal}
+            variacion={oee.tendencia.calidad}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PantallaDisponibilidad({ oee, estadoDisp }) {
+  const lectura =
+    oee.disponibilidad == null
+      ? "Sin información suficiente para evaluar la disponibilidad del período."
+      : oee.disponibilidad >= METAS.DISPONIBILIDAD
+      ? "La planta opera dentro del estándar de confiabilidad definido por la dirección."
+      : oee.disponibilidad >= METAS.DISPONIBILIDAD * 0.98
+      ? "Desempeño cercano a la meta. Vigilar paros no planeados recurrentes."
+      : "Por debajo de la meta: revisar plan de mantenimiento y causas de paro.";
+
+  return (
+    <div className="flex h-full w-full flex-col">
+      <div className="mb-[1.5vh] flex items-center justify-between">
+        <div>
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-slate-500"
+            style={{ fontSize: "clamp(0.7rem, 1.4vh, 1rem)" }}
+          >
+            Mantenimiento
+          </p>
+          <h2
+            className="font-black text-slate-900"
+            style={{ fontSize: "clamp(1.25rem, 3.2vh, 2.25rem)" }}
+          >
+            Disponibilidad Operativa
+          </h2>
+        </div>
+        <span
+          className={`rounded-full ${TEMA_TV[estadoDisp].dot}`}
+          style={{
+            width: "clamp(0.75rem, 1.6vh, 1.25rem)",
+            height: "clamp(0.75rem, 1.6vh, 1.25rem)",
+          }}
+          aria-hidden
+        />
+      </div>
+
+      <div
+        className="flex flex-1 min-h-0 items-center justify-center"
+        style={{ gap: "clamp(1.5rem, 5vw, 5rem)" }}
+      >
+        <div
+          className="h-full"
+          style={{ maxHeight: "65vh", aspectRatio: "1 / 1" }}
+        >
+          <GaugeTV valor={oee.disponibilidad} meta={METAS.DISPONIBILIDAD} />
+        </div>
+
+        <div
+          className="flex-1 rounded-2xl border"
+          style={{
+            maxWidth: "700px",
+            borderColor: TV.panelBorder,
+            backgroundColor: TV.panel,
+            padding: "3vh 2vw",
+            boxShadow: "0 2px 12px rgba(0, 61, 165, 0.06)",
+          }}
+        >
+          <p
+            className="font-bold uppercase tracking-[0.28em] text-slate-500"
+            style={{
+              fontSize: "clamp(0.65rem, 1.3vh, 0.95rem)",
+              marginBottom: "1.5vh",
+            }}
+          >
+            Lectura ejecutiva
+          </p>
+          <p
+            className="font-semibold leading-snug text-slate-800"
+            style={{ fontSize: "clamp(1.1rem, 2.8vh, 2rem)" }}
+          >
+            {lectura}
+          </p>
+
+          <div
+            className="grid grid-cols-3"
+            style={{ gap: "1vw", marginTop: "3vh" }}
+          >
+            <SubKpiTV
+              titulo="Meta"
+              valor={`${(METAS.DISPONIBILIDAD * 100).toFixed(2)}%`}
+              estado="gris"
+            />
+            <SubKpiTV
+              titulo="Actual"
+              valor={
+                oee.disponibilidad != null
+                  ? `${(oee.disponibilidad * 100).toFixed(2)}%`
+                  : "—"
+              }
+              estado={estadoDisp}
+            />
+            <SubKpiTV
+              titulo="Tendencia"
+              valor={
+                oee.tendencia.disponibilidad != null
+                  ? `${oee.tendencia.disponibilidad >= 0 ? "+" : ""}${(
+                      oee.tendencia.disponibilidad * 100
+                    ).toFixed(1)}%`
+                  : "—"
+              }
+              estado={
+                oee.tendencia.disponibilidad == null
+                  ? "gris"
+                  : oee.tendencia.disponibilidad >= 0
+                  ? "verde"
+                  : "rojo"
+              }
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   9. DASHBOARD PRINCIPAL
+========================================================= */
+
+export default function Dashboard() {
+  const hoy = useMemo(() => new Date(), []);
+  const [anio, setAnio] = useState(hoy.getFullYear());
+  const [mes, setMes] = useState(hoy.getMonth());
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
+  const [modoTV, setModoTV] = useState(false);
+  const [pantalla, setPantalla] = useState(0);
+  const [pausado, setPausado] = useState(false);
+  const [controlesVisibles, setControlesVisibles] = useState(true);
+
+  const DURACION = 10000;
+  const TOTAL_PANTALLAS = 4;
+
+  const {
+    rango,
+    registros,
+    produccion,
+    registrosPrev,
+    produccionPrev,
+    loading,
+    error,
+    sinConexion,
+    ultimaActualizacion,
+    usandoCache,
+    recargar,
+  } = useDashboardData(anio, mes, diaSeleccionado);
+
+  useAutoRefresh(modoTV, recargar, 300000);
+
+  const oee = useOEE(registros, registrosPrev);
+
+  const produccionAcumulada = useMemo(
+    () => acumularProduccion(produccion),
+    [produccion]
+  );
+  const totalActual = useMemo(() => totalProduccion(produccion), [produccion]);
+  const totalPrev = useMemo(
+    () => totalProduccion(produccionPrev),
+    [produccionPrev]
+  );
+
+  const cumplimientoProd = cumplimiento(totalActual.real, totalActual.meta);
+  const tendenciaProd = variacion(totalActual.real, totalPrev.real);
+  const brechaProd = totalActual.real - totalActual.meta;
+
+  const ultimoDia = useMemo(
+    () => produccionUltimoDia(produccionAcumulada),
+    [produccionAcumulada]
+  );
+
+  const estadoUltimoDia =
+    ultimoDia.cumplimiento == null
+      ? "gris"
+      : ultimoDia.cumplimiento >= 1
+      ? "verde"
+      : ultimoDia.cumplimiento >= UMBRALES.AMARILLO
+      ? "amarillo"
+      : "rojo";
+
+  const seguridad = useMemo(() => {
+    if (!rango.fin) return calcularSeguridad(hoy);
+    const [a, m, d] = rango.fin.split("-").map(Number);
+    return calcularSeguridad(new Date(a, m - 1, d));
+  }, [rango.fin, hoy]);
+
+  const estadoProd =
+    cumplimientoProd == null
+      ? "gris"
+      : cumplimientoProd >= 1
+      ? "verde"
+      : cumplimientoProd >= UMBRALES.AMARILLO
+      ? "amarillo"
+      : "rojo";
+
+  const estadoOEE = estadoKPI(oee.oee, METAS.OEE);
+  const estadoDisp = estadoKPI(oee.disponibilidad, METAS.DISPONIBILIDAD);
+  const estadoCal = estadoKPI(oee.calidad, METAS.CALIDAD);
+  const estadoDes = estadoKPI(oee.desempeno, METAS.DESEMPENO);
+
+  const cambiarMes = (delta) => {
+    const d = new Date(anio, mes + delta, 1);
+    setAnio(d.getFullYear());
+    setMes(d.getMonth());
+    setDiaSeleccionado(null);
+  };
+
+  const sinDatos = !rango.fin;
+
+  /* Rotación automática */
+  useEffect(() => {
+    if (!modoTV || pausado) return;
+    const id = setInterval(() => {
+      setPantalla((p) => (p + 1) % TOTAL_PANTALLAS);
+    }, DURACION);
+    return () => clearInterval(id);
+  }, [modoTV, pausado]);
+
+  /* Controles que se ocultan */
+  useEffect(() => {
+    if (!modoTV) return;
+    let timer;
+    const resetear = () => {
+      setControlesVisibles(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setControlesVisibles(false), 4000);
+    };
+    resetear();
+    window.addEventListener("mousemove", resetear);
+    return () => {
+      window.removeEventListener("mousemove", resetear);
+      clearTimeout(timer);
+    };
+  }, [modoTV]);
+
+  /* Salir de fullscreen cierra el modo TV */
+  useEffect(() => {
+    if (!modoTV) return;
+    const onFsChange = () => {
+      if (!document.fullscreenElement) setModoTV(false);
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, [modoTV]);
+
+  /* Teclado */
+  useEffect(() => {
+    if (!modoTV) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setModoTV(false);
+      if (e.key === "ArrowRight")
+        setPantalla((p) => (p + 1) % TOTAL_PANTALLAS);
+      if (e.key === "ArrowLeft")
+        setPantalla((p) => (p - 1 + TOTAL_PANTALLAS) % TOTAL_PANTALLAS);
+      if (e.key === " ") {
+        e.preventDefault();
+        setPausado((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modoTV]);
+
+  /* =========================================================
+     MODO NORMAL
+  ========================================================= */
+  if (!modoTV) {
+    return (
+      <div className="w-full bg-slate-50">
+        <div className="mx-auto w-full max-w-[1400px] p-4 sm:p-6 lg:p-8">
+          <header className="mb-6 flex flex-col gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
+                  style={{ backgroundColor: MARCA.primario }}
+                >
+                  <span className="text-xl font-black">◈</span>
+                </div>
+                <div>
+                  <p
+                    className="text-[10px] font-bold uppercase tracking-[0.28em]"
+                    style={{ color: MARCA.primario }}
+                  >
+                    Grupo AG · División Industrial
+                  </p>
+                  <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
+                    Dashboard Planta Transmetal
+                  </h1>
+                  <p className="text-sm text-slate-500">
+                    Seguridad · Producción · Eficiencia global de equipos
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  try {
+                    if (!document.fullscreenElement) {
+                      await document.documentElement.requestFullscreen();
+                    }
+                  } catch (err) {
+                    console.warn("Fullscreen no disponible:", err);
+                  }
+                  setModoTV(true);
+                  setPantalla(0);
+                }}
+                aria-label="Activar modo TV rotativo"
+                className="h-11 shrink-0 self-start rounded-lg px-4 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:opacity-90 sm:self-center"
+                style={{ backgroundColor: MARCA.primario }}
+              >
+                📺 Modo TV
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <DayNavigator
+                mes={mes}
+                rango={rango}
+                diaSeleccionado={diaSeleccionado}
+                onChange={setDiaSeleccionado}
+              />
+              <MonthSelector
+                anio={anio}
+                mes={mes}
+                rango={rango}
+                onChange={cambiarMes}
+                onRefresh={recargar}
+                loading={loading}
+              />
+            </div>
+          </header>
+
+          {sinConexion && !sinDatos && (
+            <div
+              role="status"
+              className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+              <span className="font-bold">
+                ⚠ Sin conexión · Mostrando última información disponible
+              </span>
+              {ultimaActualizacion && (
+                <span className="text-xs font-semibold text-amber-700 tabular-nums">
+                  Última actualización: {formatearFechaHoraCache(ultimaActualizacion)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div
+              role="alert"
+              className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+            >
+              {error}
+            </div>
+          )}
+
+          {loading && !error && <SkeletonDash />}
+
+          {!loading && sinDatos && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+              <p className="text-base font-semibold text-slate-700">
+                {rango.futuro
+                  ? "El período seleccionado aún no ha ocurrido."
+                  : "Aún no hay días cerrados para este mes."}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Selecciona otro mes o vuelve al período actual.
+              </p>
+            </div>
+          )}
+
+          {!loading && !sinDatos && (
+            <>
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[380px_1fr]">
+                <SafetyBanner
+                  anios={seguridad.anios}
+                  dias={seguridad.dias}
+                  dark={false}
+                />
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="mb-5 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        Producción · Carretas
+                      </p>
+                      <h2 className="text-xl font-black text-slate-900">
+                        {diaSeleccionado
+                          ? `Cumplimiento acumulado al día ${diaSeleccionado}`
+                          : "Cumplimiento acumulado del mes"}
+                      </h2>
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${TEMA[estadoProd].badge}`}
+                    >
+                      {cumplimientoProd != null
+                        ? `${(cumplimientoProd * 100).toFixed(1)}% cumplimiento`
+                        : "Sin datos"}
+                    </span>
+                  </div>
+
+                  <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                    <KpiCard
+                      titulo="Real acumulado"
+                      valor={numero(totalActual.real)}
+                      unidad="carr."
+                      variacion={tendenciaProd}
+                      estado="gris"
+                    />
+                    <KpiCard
+                      titulo="Meta acumulada"
+                      valor={numero(totalActual.meta)}
+                      unidad="carr."
+                      estado="gris"
+                    />
+                    <KpiCard
+                      titulo="Cumplimiento"
+                      valor={
+                        cumplimientoProd != null
+                          ? `${(cumplimientoProd * 100).toFixed(1)}%`
+                          : "—"
+                      }
+                      estado={estadoProd}
+                      destacado
+                    />
+                    <KpiCard
+                      titulo="Brecha"
+                      valor={
+                        brechaProd > 0
+                          ? `+${numero(brechaProd)}`
+                          : numero(brechaProd)
+                      }
+                      unidad="carr."
+                      estado={brechaProd >= 0 ? "verde" : "rojo"}
+                    />
+                    <KpiCard
+                      titulo={
+                        ultimoDia.dia
+                          ? `Día ${ultimoDia.dia} (últ. cierre)`
+                          : "Último día"
+                      }
+                      valor={
+                        ultimoDia.cumplimiento != null
+                          ? `${(ultimoDia.cumplimiento * 100).toFixed(1)}%`
+                          : "—"
+                      }
+                      unidad={
+                        ultimoDia.real
+                          ? `${numero(ultimoDia.real)}/${numero(ultimoDia.meta)}`
+                          : undefined
+                      }
+                      estado={estadoUltimoDia}
+                      destacado
+                    />
+                  </div>
+
+                  {ultimoDia.fecha && (
+                    <div
+                      className={`mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${TEMA[estadoUltimoDia].border} ${TEMA[estadoUltimoDia].bg}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`h-2 w-2 rounded-full ${TEMA[estadoUltimoDia].dot}`}
+                        />
+                        <p className="text-sm font-semibold text-slate-700">
+                          Cierre del {formatearFecha(ultimoDia.fecha)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm tabular-nums">
+                        <span className="text-slate-600">
+                          Real:{" "}
+                          <b className="text-slate-900">
+                            {numero(ultimoDia.real)}
+                          </b>{" "}
+                          carr.
+                        </span>
+                        <span className="text-slate-600">
+                          Meta:{" "}
+                          <b className="text-slate-900">
+                            {numero(ultimoDia.meta)}
+                          </b>{" "}
+                          carr.
+                        </span>
+                        <span className="text-slate-600">
+                          Cumplimiento:{" "}
+                          <b className={TEMA[estadoUltimoDia].text}>
+                            {ultimoDia.cumplimiento != null
+                              ? `${(ultimoDia.cumplimiento * 100).toFixed(1)}%`
+                              : "—"}
+                          </b>
+                        </span>
+                        <span className="text-slate-600">
+                          Brecha:{" "}
+                          <b
+                            className={
+                              ultimoDia.brecha >= 0
+                                ? "text-emerald-600"
+                                : "text-rose-600"
+                            }
+                          >
+                            {ultimoDia.brecha >= 0 ? "+" : ""}
+                            {numero(ultimoDia.brecha)}
+                          </b>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <TrendChart datos={produccionAcumulada} dark={false} />
+                </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <section
+                  className={`rounded-2xl border bg-white p-6 shadow-sm ${TEMA[estadoOEE].border}`}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        Eficiencia global
+                      </p>
+                      <h2 className="text-xl font-black text-slate-900">
+                        OEE Global
+                      </h2>
+                    </div>
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${TEMA[estadoOEE].dot}`}
+                      aria-hidden
+                    />
+                  </div>
+
+                  <Gauge
+                    valor={oee.oee}
+                    meta={METAS.OEE}
+                    titulo="Overall Equipment Effectiveness"
+                    subtitulo="Disponibilidad × Desempeño × Calidad"
+                  />
+
+                  <div className="mt-5 grid grid-cols-3 gap-3">
+                    <KpiCard
+                      titulo="Disponibilidad"
+                      valor={
+                        oee.disponibilidad != null
+                          ? `${(oee.disponibilidad * 100).toFixed(1)}%`
+                          : "—"
+                      }
+                      variacion={oee.tendencia.disponibilidad}
+                      estado={estadoDisp}
+                    />
+                    <KpiCard
+                      titulo="Desempeño"
+                      valor={
+                        oee.desempeno != null
+                          ? `${(oee.desempeno * 100).toFixed(1)}%`
+                          : "—"
+                      }
+                      variacion={oee.tendencia.desempeno}
+                      estado={estadoDes}
+                    />
+                    <KpiCard
+                      titulo="Calidad"
+                      valor={
+                        oee.calidad != null
+                          ? `${(oee.calidad * 100).toFixed(1)}%`
+                          : "—"
+                      }
+                      variacion={oee.tendencia.calidad}
+                      estado={estadoCal}
+                    />
+                  </div>
+                </section>
+
+                <section
+                  className={`rounded-2xl border bg-white p-6 shadow-sm ${TEMA[estadoDisp].border}`}
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                        Mantenimiento
+                      </p>
+                      <h2 className="text-xl font-black text-slate-900">
+                        Disponibilidad Operativa
+                      </h2>
+                    </div>
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${TEMA[estadoDisp].dot}`}
+                      aria-hidden
+                    />
+                  </div>
+
+                  <Gauge
+                    valor={oee.disponibilidad}
+                    meta={METAS.DISPONIBILIDAD}
+                    titulo="Tiempo operativo vs programado"
+                    subtitulo="Indicador clave de confiabilidad"
+                  />
+
+                  <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                      Lectura ejecutiva
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      {oee.disponibilidad == null
+                        ? "Sin información suficiente para evaluar la disponibilidad del período."
+                        : oee.disponibilidad >= METAS.DISPONIBILIDAD
+                        ? "La planta opera dentro del estándar de confiabilidad definido por la dirección."
+                        : oee.disponibilidad >= METAS.DISPONIBILIDAD * 0.98
+                        ? "Desempeño cercano a la meta. Vigilar paros no planeados recurrentes."
+                        : "Por debajo de la meta: revisar plan de mantenimiento y causas de paro."}
+                    </p>
+                  </div>
+                </section>
+              </div>
+
+              <footer className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-4 text-[11px] text-slate-400">
+                <span>
+                  Metas: OEE {(METAS.OEE * 100).toFixed(2)}% · Disponibilidad{" "}
+                  {(METAS.DISPONIBILIDAD * 100).toFixed(2)}% · Calidad{" "}
+                  {(METAS.CALIDAD * 100).toFixed(2)}% · Desempeño{" "}
+                  {(METAS.DESEMPENO * 100).toFixed(2)}%
+                </span>
+                {rango.fin && (
+                  <span className="tabular-nums">
+                    Información validada al {formatearFecha(rango.fin)}
+                  </span>
+                )}
+              </footer>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================================================
+     MODO TV — PORTAL A BODY, OCUPA TODO EL VIEWPORT
+  ========================================================= */
+  return createPortal(
+    <main
+      className="fixed inset-0 overflow-hidden"
+      style={{
+        background: TV.bgGrad,
+        color: TV.textoPrimario,
+        zIndex: 9999,
+        width: "100vw",
+        height: "100vh",
+      }}
+    >
+      {/* Barra de progreso */}
+      {!pausado && (
+        <div
+          className="absolute top-0 left-0 right-0 z-30 h-1"
+          style={{ backgroundColor: TV.panelBorder }}
+        >
+          <div
+            key={pantalla}
+            className="h-full"
+            style={{
+              backgroundColor: TV.acento,
+              animation: `progreso ${DURACION}ms linear forwards`,
+            }}
+          />
+        </div>
+      )}
+
+      {/* Grid: header arriba, contenido debajo */}
+      <div
+        className="grid h-full w-full"
+        style={{ gridTemplateRows: "auto 1fr" }}
+      >
+        {/* Header */}
+        <header
+          className="z-20 flex items-center justify-between"
+          style={{
+            padding: "1.5vh 2vw",
+            backgroundColor: TV.headerBg,
+            borderBottom: `3px solid ${TV.acento}`,
+          }}
+        >
+          <div className="flex items-center" style={{ gap: "1vw" }}>
+            <div
+              className="flex items-center justify-center rounded-xl"
+              style={{
+                width: "clamp(2.5rem, 4vh, 4rem)",
+                height: "clamp(2.5rem, 4vh, 4rem)",
+                backgroundColor: TV.acento,
+                color: TV.headerBg,
+              }}
+            >
+              <span
+                className="font-black"
+                style={{ fontSize: "clamp(1rem, 2vh, 1.75rem)" }}
+              >
+                ◈
+              </span>
+            </div>
+            <div>
+              <p
+                className="font-bold uppercase"
+                style={{
+                  color: TV.acento,
+                  fontSize: "clamp(0.6rem, 1.2vh, 0.9rem)",
+                  letterSpacing: "0.28em",
+                }}
+              >
+                Grupo AG · Planta Transmetal
+              </p>
+              <p
+                style={{
+                  color: TV.headerText,
+                  fontSize: "clamp(0.7rem, 1.4vh, 1rem)",
+                }}
+              >
+                {MESES[mes]} {anio} · {formatearFecha(rango.inicio)} —{" "}
+                {formatearFecha(rango.fin)}
+              </p>
+            </div>
+          </div>
+
+          <RelojEnVivo claro />
+        </header>
+
+        {sinConexion && !sinDatos && (
+          <div
+            className="absolute left-1/2 z-40 -translate-x-1/2 rounded-full border border-amber-300 bg-amber-50/95 font-bold text-amber-900 shadow-lg backdrop-blur"
+            style={{
+              top: "9.5vh",
+              padding: "0.7vh 1.2vw",
+              fontSize: "clamp(0.65rem, 1.35vh, 1rem)",
+            }}
+          >
+            ⚠ Sin conexión · Mostrando última información disponible
+            {ultimaActualizacion && (
+              <span className="ml-2 font-semibold text-amber-700">
+                · {formatearFechaHoraCache(ultimaActualizacion)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Contenido rotativo */}
+        <div
+          className="relative flex min-h-0 w-full items-center justify-center"
+          style={{
+            paddingLeft: "3vw",
+            paddingRight: "3vw",
+            paddingTop: "2vh",
+            paddingBottom: "10vh",
+          }}
+        >
+          <div
+            className="h-full w-full"
+            style={{ maxWidth: "min(1700px, 94vw)", margin: "0 auto" }}
+          >
+            {loading ? (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-slate-500 text-2xl">Cargando datos…</p>
+              </div>
+            ) : sinDatos ? (
+              <div className="flex h-full items-center justify-center">
+                <p className="text-slate-500 text-2xl text-center">
+                  {rango.futuro
+                    ? "El período seleccionado aún no ha ocurrido."
+                    : "Aún no hay días cerrados para este mes."}
+                </p>
+              </div>
+            ) : (
+              <div
+                key={pantalla}
+                className="flex h-full w-full items-stretch"
+                style={{ animation: "fadeIn 600ms ease-out" }}
+              >
+                {pantalla === 0 && <PantallaSeguridad seguridad={seguridad} />}
+                {pantalla === 1 && (
+                  <PantallaProduccion
+                    totalActual={totalActual}
+                    cumplimientoProd={cumplimientoProd}
+                    brechaProd={brechaProd}
+                    estadoProd={estadoProd}
+                    ultimoDia={ultimoDia}
+                    estadoUltimoDia={estadoUltimoDia}
+                    produccionAcumulada={produccionAcumulada}
+                    diaSeleccionado={diaSeleccionado}
+                  />
+                )}
+                {pantalla === 2 && (
+                  <PantallaOEE
+                    oee={oee}
+                    estadoOEE={estadoOEE}
+                    estadoDisp={estadoDisp}
+                    estadoDes={estadoDes}
+                    estadoCal={estadoCal}
+                  />
+                )}
+                {pantalla === 3 && (
+                  <PantallaDisponibilidad oee={oee} estadoDisp={estadoDisp} />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Controles inferiores */}
+      <div
+        className={`absolute left-1/2 z-30 flex -translate-x-1/2 items-center rounded-full transition-opacity duration-500 ${
+          controlesVisibles ? "opacity-100" : "opacity-0"
+        }`}
+        style={{
+          bottom: "2vh",
+          gap: "1vw",
+          padding: "0.75vh 1.5vw",
+          backgroundColor: "rgba(255, 255, 255, 0.95)",
+          border: `1px solid ${TV.panelBorder}`,
+          boxShadow: "0 8px 24px rgba(0, 61, 165, 0.15)",
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        <button
+          onClick={() =>
+            setPantalla((p) => (p - 1 + TOTAL_PANTALLAS) % TOTAL_PANTALLAS)
+          }
+          aria-label="Pantalla anterior"
+          className="hover:opacity-70 text-lg"
+          style={{ color: TV.headerBg }}
+        >
+          ◀
+        </button>
+
+        <div className="flex items-center gap-2">
+          {Array.from({ length: TOTAL_PANTALLAS }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPantalla(i)}
+              aria-label={`Ir a pantalla ${i + 1}`}
+              aria-current={i === pantalla ? "true" : undefined}
+              className={`h-2 rounded-full transition-all ${
+                i === pantalla ? "w-8" : "w-2 hover:opacity-70"
+              }`}
+              style={{
+                backgroundColor: i === pantalla ? TV.headerBg : TV.panelBorder,
+              }}
+            />
+          ))}
+        </div>
+
+        <button
+          onClick={() => setPausado((p) => !p)}
+          aria-label={pausado ? "Reanudar rotación" : "Pausar rotación"}
+          className="hover:opacity-70 text-sm"
+          style={{ color: TV.headerBg }}
+        >
+          {pausado ? "▶" : "⏸"}
+        </button>
+
+        <button
+          onClick={() => setPantalla((p) => (p + 1) % TOTAL_PANTALLAS)}
+          aria-label="Pantalla siguiente"
+          className="hover:opacity-70 text-lg"
+          style={{ color: TV.headerBg }}
+        >
+          ▶
+        </button>
+
+        <div className="h-5 w-px" style={{ backgroundColor: TV.panelBorder }} />
+
+        <button
+          onClick={async () => {
+            try {
+              if (document.fullscreenElement) await document.exitFullscreen();
+            } catch (err) {
+              console.warn(err);
+            }
+            setModoTV(false);
+          }}
+          aria-label="Salir de modo TV"
+          className="text-xs font-bold uppercase tracking-wider hover:opacity-70"
+          style={{ color: "#E11D48" }}
+        >
+          ✕ Salir
+        </button>
+      </div>
+
+      <style>{`
+        @keyframes progreso {
+          from { width: 0%; }
+          to { width: 100%; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </main>,
+    document.body
+  );
