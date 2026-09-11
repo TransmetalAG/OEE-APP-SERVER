@@ -1,4 +1,8 @@
-
+/* =========================================================
+   DASHBOARD PLANTA TRANSMETAL
+   Grupo AG · División Industrial
+   Versión Senior — Enfoque industrial / directivo
+========================================================= */
 
 import React, {
   useCallback,
@@ -739,16 +743,18 @@ function TrendChart({ datos, dark = false, fill = false }) {
   );
 }
 
+/* ---------- Safety Banner (Título + números GIGANTES) ---------- */
 function SafetyBanner({ anios, dias, dark = false }) {
   return (
     <section
-      className={`relative flex flex-col justify-between overflow-hidden rounded-2xl border p-6 ${
+      className={`relative flex flex-col justify-between overflow-hidden rounded-2xl border p-7 ${
         dark
           ? "border-emerald-900 bg-gradient-to-br from-emerald-950 via-slate-800 to-emerald-950"
           : "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-emerald-50"
       }`}
-      aria-label="Indicador de seguridad"
+      aria-label="Tiempo sin Accidentes CPT"
     >
+      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-600 text-white text-lg shadow-sm">
           🛡️
@@ -762,51 +768,49 @@ function SafetyBanner({ anios, dias, dark = false }) {
               dark ? "text-slate-100" : "text-slate-800"
             }`}
           >
-            Días sin accidente con tiempo perdido
+            Tiempo sin Accidentes CPT
           </h3>
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center py-4">
-        <div className="flex items-end justify-center gap-4">
-          <div className="text-center">
-            <p
-              className={`text-7xl xl:text-8xl font-black tabular-nums leading-none ${
-                dark ? "text-emerald-400" : "text-emerald-700"
-              }`}
-            >
-              {anios}
-            </p>
-            <p
-              className={`mt-2 text-xs font-bold uppercase tracking-wider ${
-                dark ? "text-emerald-400" : "text-emerald-700"
-              }`}
-            >
-              {anios === 1 ? "Año" : "Años"}
-            </p>
-          </div>
+      {/* Números GIGANTES */}
+      <div className="flex flex-1 flex-col items-center justify-center py-3">
+        <p
+          className={`text-[9rem] sm:text-[11rem] xl:text-[13rem] font-black tabular-nums leading-[0.85] ${
+            dark ? "text-emerald-400" : "text-emerald-700"
+          }`}
+        >
+          {anios}
+        </p>
+        <p
+          className={`text-sm sm:text-base font-bold uppercase tracking-[0.3em] ${
+            dark ? "text-emerald-400" : "text-emerald-700"
+          }`}
+        >
+          {anios === 1 ? "Año" : "Años"}
+        </p>
 
-          {dias > 0 && (
-            <div className="text-center pb-1">
-              <p
-                className={`text-5xl xl:text-6xl font-black tabular-nums leading-none ${
-                  dark ? "text-emerald-500" : "text-emerald-600"
-                }`}
-              >
-                +{dias}
-              </p>
-              <p
-                className={`mt-2 text-xs font-bold uppercase tracking-wider ${
-                  dark ? "text-emerald-500" : "text-emerald-600"
-                }`}
-              >
-                {dias === 1 ? "Día" : "Días"}
-              </p>
-            </div>
-          )}
-        </div>
+        {dias > 0 && (
+          <>
+            <p
+              className={`mt-2 text-5xl sm:text-6xl xl:text-7xl font-black tabular-nums leading-none ${
+                dark ? "text-emerald-500" : "text-emerald-600"
+              }`}
+            >
+              +{dias}
+            </p>
+            <p
+              className={`mt-1 text-xs font-bold uppercase tracking-[0.3em] ${
+                dark ? "text-emerald-500" : "text-emerald-600"
+              }`}
+            >
+              {dias === 1 ? "Día" : "Días"}
+            </p>
+          </>
+        )}
       </div>
 
+      {/* Footer */}
       <p
         className={`text-center text-[11px] font-medium ${
           dark ? "text-emerald-500/80" : "text-emerald-700/80"
@@ -831,7 +835,7 @@ function MonthSelector({ anio, mes, rango, onChange, onRefresh, loading }) {
       </button>
 
       <div
-        className="min-w-[200px] rounded-lg border bg-white px-5 py-1.5 text-center"
+        className="min-w-[180px] rounded-lg border bg-white px-4 py-1.5 text-center"
         style={{ borderColor: MARCA.primarioBorder }}
       >
         <p
@@ -874,32 +878,41 @@ function DayNavigator({ mes, rango, diaSeleccionado, onChange }) {
 
   const diaMax = Number(rango.fin.split("-")[2]);
   const diaActual = diaSeleccionado ?? diaMax;
+  const enMesCompleto = diaSeleccionado === null;
 
   const ir = (delta) => {
     const nuevo = diaActual + delta;
-    if (nuevo < 1 || nuevo > diaMax) return;
+    if (nuevo > diaMax) {
+      onChange(null);
+      return;
+    }
+    if (nuevo < 1) return;
     onChange(nuevo === diaMax ? null : nuevo);
   };
 
-  const texto = diaSeleccionado
-    ? `Al ${String(diaActual).padStart(2, "0")}/${String(mes + 1).padStart(2, "0")}`
-    : "Mes completo";
+  const puedeAvanzar = !enMesCompleto;
+  const puedeRetroceder = diaActual > 1 || !enMesCompleto;
+
+  const texto = enMesCompleto
+    ? "Mes completo"
+    : `Al ${String(diaActual).padStart(2, "0")}/${String(mes + 1).padStart(2, "0")}`;
 
   return (
     <div
-      className="flex items-center gap-1 rounded-lg border bg-white px-1 py-0.5"
+      className="flex items-center gap-1 rounded-lg border bg-white px-1 py-0.5 shadow-sm"
       style={{ borderColor: MARCA.primarioBorder }}
     >
       <button
         onClick={() => ir(-1)}
-        disabled={diaActual <= 1}
+        disabled={!puedeRetroceder}
         aria-label="Día anterior"
-        className="flex h-8 w-8 items-center justify-center rounded-md text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-30"
+        className="flex h-9 w-9 items-center justify-center rounded-md text-sm font-bold transition hover:bg-slate-100 disabled:opacity-30"
+        style={{ color: MARCA.primario }}
       >
         ◀
       </button>
 
-      <div className="min-w-[110px] text-center">
+      <div className="min-w-[120px] px-2 text-center">
         <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
           Producción
         </p>
@@ -910,12 +923,26 @@ function DayNavigator({ mes, rango, diaSeleccionado, onChange }) {
 
       <button
         onClick={() => ir(1)}
-        disabled={diaActual >= diaMax}
+        disabled={!puedeAvanzar}
         aria-label="Día siguiente"
-        className="flex h-8 w-8 items-center justify-center rounded-md text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-30"
+        className="flex h-9 w-9 items-center justify-center rounded-md text-sm font-bold transition hover:bg-slate-100 disabled:opacity-30"
+        style={{ color: MARCA.primario }}
       >
         ▶
       </button>
+
+      {/* Botón "Hoy" — aparece solo cuando estás en un día específico */}
+      {!enMesCompleto && (
+        <button
+          onClick={() => onChange(null)}
+          aria-label="Volver al último día cerrado"
+          className="ml-1 flex h-9 items-center gap-1 rounded-md px-3 text-[10px] font-bold uppercase tracking-wider text-white transition hover:opacity-90"
+          style={{ backgroundColor: MARCA.primario }}
+          title="Volver al último día cerrado (ayer)"
+        >
+          ⏮ Hoy
+        </button>
+      )}
     </div>
   );
 }
@@ -980,8 +1007,12 @@ function RelojEnVivo() {
    6. HELPERS DE CÁLCULO
 ========================================================= */
 
-function calcularSeguridad(hoy) {
-  const f0 = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+function calcularSeguridad(fechaReferencia) {
+  const f0 = new Date(
+    fechaReferencia.getFullYear(),
+    fechaReferencia.getMonth(),
+    fechaReferencia.getDate()
+  );
   let anios = f0.getFullYear() - FECHA_ULTIMO_CPT.getFullYear();
   let aniv = new Date(
     FECHA_ULTIMO_CPT.getFullYear() + anios,
@@ -1220,7 +1251,7 @@ function GaugeTV({ valor, meta }) {
 function PantallaSeguridad({ seguridad }) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center text-center">
-      <div className="mb-8 flex items-center gap-4">
+      <div className="mb-6 flex items-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-4xl shadow-lg">
           🛡️
         </div>
@@ -1228,34 +1259,33 @@ function PantallaSeguridad({ seguridad }) {
           <p className="text-sm font-bold uppercase tracking-[0.28em] text-emerald-400">
             Seguridad Industrial
           </p>
-          <p className="text-lg text-slate-300">
-            Días sin accidente con tiempo perdido
+          <p className="text-xl font-bold text-slate-300">
+            Tiempo sin Accidentes CPT
           </p>
         </div>
       </div>
 
-      <div className="flex items-end justify-center gap-8">
-        <div>
-          <p className="text-[12rem] xl:text-[16rem] font-black tabular-nums leading-none text-emerald-400">
-            {seguridad.anios}
-          </p>
-          <p className="text-3xl font-bold uppercase tracking-widest text-emerald-500 mt-4">
-            {seguridad.anios === 1 ? "Año" : "Años"}
-          </p>
-        </div>
+      <div className="flex flex-1 flex-col items-center justify-center">
+        <p className="text-[16rem] xl:text-[22rem] font-black tabular-nums leading-[0.85] text-emerald-400">
+          {seguridad.anios}
+        </p>
+        <p className="text-4xl font-bold uppercase tracking-[0.3em] text-emerald-500 mt-2">
+          {seguridad.anios === 1 ? "Año" : "Años"}
+        </p>
+
         {seguridad.dias > 0 && (
-          <div className="pb-16">
-            <p className="text-[8rem] xl:text-[10rem] font-black tabular-nums leading-none text-emerald-500">
+          <>
+            <p className="mt-8 text-[8rem] xl:text-[10rem] font-black tabular-nums leading-none text-emerald-500">
               +{seguridad.dias}
             </p>
-            <p className="text-2xl font-bold uppercase tracking-widest text-emerald-600 mt-2">
+            <p className="text-3xl font-bold uppercase tracking-[0.3em] text-emerald-600 mt-2">
               {seguridad.dias === 1 ? "Día" : "Días"}
             </p>
-          </div>
+          </>
         )}
       </div>
 
-      <p className="mt-12 text-lg text-emerald-500/80">
+      <p className="mt-8 text-lg text-emerald-500/80">
         Record vigente desde el 19 de septiembre de 2023
       </p>
     </div>
@@ -1548,7 +1578,12 @@ export default function Dashboard() {
       ? "amarillo"
       : "rojo";
 
-  const seguridad = useMemo(() => calcularSeguridad(hoy), [hoy]);
+  /* Seguridad calculada contra el fin del rango visible */
+  const seguridad = useMemo(() => {
+    if (!rango.fin) return calcularSeguridad(hoy);
+    const [a, m, d] = rango.fin.split("-").map(Number);
+    return calcularSeguridad(new Date(a, m - 1, d));
+  }, [rango.fin, hoy]);
 
   const estadoProd =
     cumplimientoProd == null
@@ -1573,7 +1608,6 @@ export default function Dashboard() {
 
   const sinDatos = !rango.fin;
 
-  /* Rotación automática */
   useEffect(() => {
     if (!modoTV || pausado) return;
     const id = setInterval(() => {
@@ -1582,7 +1616,6 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [modoTV, pausado]);
 
-  /* Ocultar controles */
   useEffect(() => {
     if (!modoTV) return;
     let timer;
@@ -1599,7 +1632,6 @@ export default function Dashboard() {
     };
   }, [modoTV]);
 
-  /* Atajos de teclado */
   useEffect(() => {
     if (!modoTV) return;
     const onKey = (e) => {
@@ -1624,31 +1656,47 @@ export default function Dashboard() {
     return (
       <main className="min-h-screen bg-slate-50">
         <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">
-          <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-sm"
+          <header className="mb-6 flex flex-col gap-4">
+            {/* Fila 1: Título + Modo TV */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
+                  style={{ backgroundColor: MARCA.primario }}
+                >
+                  <span className="text-xl font-black">◈</span>
+                </div>
+                <div>
+                  <p
+                    className="text-[10px] font-bold uppercase tracking-[0.28em]"
+                    style={{ color: MARCA.primario }}
+                  >
+                    Grupo AG · División Industrial
+                  </p>
+                  <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
+                    Dashboard Planta Transmetal
+                  </h1>
+                  <p className="text-sm text-slate-500">
+                    Seguridad · Producción · Eficiencia global de equipos
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setModoTV(true);
+                  setPantalla(0);
+                }}
+                aria-label="Activar modo TV rotativo"
+                className="h-11 shrink-0 self-start rounded-lg px-4 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:opacity-90 sm:self-center"
                 style={{ backgroundColor: MARCA.primario }}
               >
-                <span className="text-xl font-black">◈</span>
-              </div>
-              <div>
-                <p
-                  className="text-[10px] font-bold uppercase tracking-[0.28em]"
-                  style={{ color: MARCA.primario }}
-                >
-                  Grupo AG · División Industrial
-                </p>
-                <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 sm:text-3xl">
-                  Dashboard Planta Transmetal
-                </h1>
-                <p className="text-sm text-slate-500">
-                  Seguridad · Producción · Eficiencia global de equipos
-                </p>
-              </div>
+                📺 Modo TV
+              </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Fila 2: Controles de navegación */}
+            <div className="flex flex-wrap items-center gap-3">
               <DayNavigator
                 mes={mes}
                 rango={rango}
@@ -1663,17 +1711,6 @@ export default function Dashboard() {
                 onRefresh={recargar}
                 loading={loading}
               />
-              <button
-                onClick={() => {
-                  setModoTV(true);
-                  setPantalla(0);
-                }}
-                aria-label="Activar modo TV rotativo"
-                className="h-10 rounded-lg px-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:opacity-90"
-                style={{ backgroundColor: MARCA.primario }}
-              >
-                📺 Modo TV
-              </button>
             </div>
           </header>
 
@@ -1703,7 +1740,7 @@ export default function Dashboard() {
 
           {!loading && !sinDatos && (
             <>
-              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_1fr]">
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[380px_1fr]">
                 <SafetyBanner
                   anios={seguridad.anios}
                   dias={seguridad.dias}
@@ -1965,8 +2002,7 @@ export default function Dashboard() {
   }
 
   /* =========================================================
-     MODO TV — CARRUSEL DE PANTALLAS COMPLETAS
-     Contenido centrado horizontalmente con max-width
+     MODO TV — CARRUSEL CENTRADO
   ========================================================= */
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-900 text-white">
@@ -2010,9 +2046,9 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Contenido rotativo centrado */}
+      {/* Contenido rotativo — centrado con mx-auto */}
       <div className="absolute inset-0 flex items-center justify-center px-10 pt-20 pb-20">
-        <div className="w-full max-w-[1700px] h-full">
+        <div className="mx-auto h-full w-full max-w-[1700px]">
           {loading ? (
             <div className="flex h-full items-center justify-center">
               <p className="text-slate-400 text-2xl">Cargando datos…</p>
