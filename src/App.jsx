@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import Captura from "./components/Captura";
+import Produccion from "./components/Produccion";
 import Historial from "./components/Historial";
 import KPIs from "./components/KPIs";
-import Produccion from "./components/Produccion";
+import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 
 export default function App() {
@@ -60,6 +61,20 @@ export default function App() {
             Tiempos
           </button>
 
+          {/* PRODUCCIÓN */}
+          {auth && (
+            <button
+              onClick={() => setTab("produccion")}
+              className={`px-5 py-2.5 rounded-lg transition-all duration-200 ${
+                tab === "produccion"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                  : "bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200"
+              }`}
+            >
+              Producción
+            </button>
+          )}
+
           {/* PAROS */}
           {auth && (
             <button
@@ -88,19 +103,20 @@ export default function App() {
             </button>
           )}
 
-          {/* PRODUCCIÓN */}
+          {/* DASHBOARD */}
           {auth && (
             <button
-              onClick={() => setTab("produccion")}
+              onClick={() => setTab("dashboard")}
               className={`px-5 py-2.5 rounded-lg transition-all duration-200 ${
-                tab === "produccion"
+                tab === "dashboard"
                   ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105"
                   : "bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200"
               }`}
             >
-              Producción
+              Dashboard
             </button>
           )}
+
         </nav>
 
         {/* Contenido principal */}
@@ -108,11 +124,13 @@ export default function App() {
 
           {tab === "captura" && <Captura />}
 
+          {tab === "produccion" && auth && <Produccion />}
+
           {tab === "historial" && auth && <Historial />}
 
           {tab === "kpis" && auth && <KPIs />}
 
-          {tab === "produccion" && auth && <Produccion />}
+          {tab === "dashboard" && auth && <Dashboard />}
 
           {tab === "login" && (
             <Login auth={auth} setAuth={setAuth} />
