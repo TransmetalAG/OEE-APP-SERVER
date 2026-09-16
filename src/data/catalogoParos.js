@@ -166,7 +166,7 @@ export const catalogoParos = {
     { paro: "Falla en tablero eléctrico local", causa: "Eléctrica" },
     { paro: "Falla en electroválvulas", causa: "Mecánica" },
     { paro: "Falla en mangueras neumáticas", causa: "Mecánica" },
-    { paro: "Falla en unidades de mantenimiento", causa: "Mecánica" }
+    { paro: "Falla en unidades de mantenimiento", causa: "Mecánica" },
     { paro: "Punzón en mal estado", causa: "Mecánica" },
    { paro: "Camisa en mal estado", causa: "Mecánica" },
   ],
