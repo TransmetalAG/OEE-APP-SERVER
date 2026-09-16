@@ -152,7 +152,7 @@ export const catalogoParos = {
     { paro: "Falla en mangueras neumáticas", causa: "Mecánica" },
     { paro: "Falla en unidades de mantenimiento", causa: "Mecánica" }
   ],
-  "Troqueladora Plato": [
+  "Troqueladora de Plato": [
     { paro: "Molde en mal estado", causa: "Mecánica" },
     { paro: "Se quiebran resortes", causa: "Mecánica" },
     { paro: "Falla en sistema de embrague", causa: "Mecánica" },
