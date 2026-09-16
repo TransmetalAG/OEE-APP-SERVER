@@ -152,6 +152,25 @@ export const catalogoParos = {
     { paro: "Falla en mangueras neumáticas", causa: "Mecánica" },
     { paro: "Falla en unidades de mantenimiento", causa: "Mecánica" }
   ],
+  "Troqueladora Plato": [
+    { paro: "Molde en mal estado", causa: "Mecánica" },
+    { paro: "Se quiebran resortes", causa: "Mecánica" },
+    { paro: "Falla en sistema de embrague", causa: "Mecánica" },
+    { paro: "Falla en cuña", causa: "Mecánica" },
+    { paro: "Falla en volante de transmisión", causa: "Mecánica" },
+    { paro: "Falla en freno", causa: "Mecánica" },
+    { paro: "Falla en polea de transmisión", causa: "Mecánica" },
+    { paro: "Falla en botonera de accionamiento", causa: "Mecánica" },
+    { paro: "Falla en hongo de emergencia", causa: "Mecánica" },
+    { paro: "Desajuste de molde", causa: "Mecánica" },
+    { paro: "Falla en tablero eléctrico local", causa: "Eléctrica" },
+    { paro: "Falla en electroválvulas", causa: "Mecánica" },
+    { paro: "Falla en mangueras neumáticas", causa: "Mecánica" },
+    { paro: "Falla en unidades de mantenimiento", causa: "Mecánica" }
+    { paro: "Punzón en mal estado", causa: "Mecánica" },
+   { paro: "Camisa en mal estado", causa: "Mecánica" },
+  ],
+
 
   "Serigrafía": [
     { paro: "Problema con manta de serigrafía", causa: "Operacional" },
