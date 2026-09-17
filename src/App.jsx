@@ -6,163 +6,144 @@ import KPIs from "./components/KPIs";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 
-/* =======================
-   PALETA GRUPO AG (azul)
-   — cambia estos hex si tienes la guía de marca exacta —
-======================= */
-const AG = {
-  navy900: "#0A2A43", // fondo header / nav
-  blue700: "#14476E", // estado activo, botones primarios
-  blue500: "#1E6FA8", // acento / indicador activo
-  blue100: "#EAF3FA", // fondo tenue de tarjetas/tags
-  ink900: "#1C1F26", // texto principal
-  ink500: "#64748B", // texto secundario
-  alert600: "#C4453A", // solo para alertas de paro/error
-};
-
-/* =======================
-   ÍCONOS (SVG inline, sin dependencias)
-======================= */
-const IconTiempos = (p) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 7v5l3.5 2" strokeLinecap="round" />
-  </svg>
-);
-const IconProduccion = (p) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-    <path d="M4 20V10M12 20V4M20 20v-7" strokeLinecap="round" />
-  </svg>
-);
-const IconParos = (p) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-    <path d="M10.3 3.5 3.5 10.3v3.4l6.8 6.8h3.4l6.8-6.8v-3.4L13.7 3.5z" strokeLinejoin="round" />
-    <path d="M12 8v5" strokeLinecap="round" />
-    <circle cx="12" cy="16.2" r="0.6" fill="currentColor" />
-  </svg>
-);
-const IconEficiencia = (p) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-    <path d="M4 15a8 8 0 0 1 16 0" strokeLinecap="round" />
-    <path d="M12 15 15.5 10" strokeLinecap="round" />
-  </svg>
-);
-const IconDashboard = (p) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-    <rect x="4" y="4" width="7" height="7" rx="1.2" />
-    <rect x="13" y="4" width="7" height="7" rx="1.2" />
-    <rect x="4" y="13" width="7" height="7" rx="1.2" />
-    <rect x="13" y="13" width="7" height="7" rx="1.2" />
-  </svg>
-);
-const IconUser = (p) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...p}>
-    <circle cx="12" cy="8.5" r="3.2" />
-    <path d="M5 20c1.2-3.5 4-5.2 7-5.2s5.8 1.7 7 5.2" strokeLinecap="round" />
-  </svg>
-);
-
-const TABS = [
-  { id: "captura", label: "Tiempos", icon: IconTiempos, requiresAuth: false },
-  { id: "produccion", label: "Producción", icon: IconProduccion, requiresAuth: true },
-  { id: "historial", label: "Paros", icon: IconParos, requiresAuth: true },
-  { id: "kpis", label: "Eficiencia", icon: IconEficiencia, requiresAuth: true },
-  { id: "dashboard", label: "Dashboard", icon: IconDashboard, requiresAuth: true },
-];
-
 export default function App() {
   const [tab, setTab] = useState("captura");
   const [auth, setAuth] = useState(false);
 
-  const visibleTabs = TABS.filter((t) => !t.requiresAuth || auth);
-
-  // Antes: siempre navegaba a "login" sin importar el estado.
-  // Ahora: si ya está autenticado, cierra sesión directo; si no, va al login.
-  const handleAuthButton = () => {
-    if (auth) {
-      setAuth(false);
-      setTab("captura");
-    } else {
-      setTab("login");
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50" style={{ color: AG.ink900 }}>
-      {/* HEADER — compacto, una sola línea */}
-      <header
-        className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 shadow-sm"
-        style={{ backgroundColor: AG.navy900 }}
-      >
-        <div className="flex items-center gap-2.5">
-          {/* Marca simple: iniciales en bloque, no emoji */}
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold text-white"
-            style={{ backgroundColor: AG.blue500 }}
-          >
-            AG
-          </div>
-          <div className="leading-tight">
-            <p className="text-sm font-semibold text-white">Control de Producción</p>
-            <p className="text-[11px] text-white/60">Paros y eficiencia</p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        <button
-          onClick={handleAuthButton}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-white transition-colors"
-          style={{ backgroundColor: auth ? AG.alert600 : AG.blue700 }}
-        >
-          <IconUser className="h-4 w-4" />
-          {auth ? "Salir" : "Ingresar"}
-        </button>
-      </header>
+        {/* Header */}
+        <header className="mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-2 rounded-xl shadow-lg">
+                <span className="text-white text-2xl">🏭</span>
+              </div>
 
-      {/* CONTENIDO — padding inferior para no quedar detrás del nav fijo */}
-      <main className="mx-auto max-w-3xl px-4 pb-24 pt-4 sm:px-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          {tab === "captura" && <Captura />}
-          {tab === "produccion" && auth && <Produccion />}
-          {tab === "historial" && auth && <Historial />}
-          {tab === "kpis" && auth && <KPIs />}
-          {tab === "dashboard" && auth && <Dashboard />}
-          {tab === "login" && <Login auth={auth} setAuth={setAuth} />}
-        </div>
-      </main>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">
+                  Control de Producción
+                </h1>
 
-      {/* NAV INFERIOR FIJA — patrón de app nativa, con safe-area para iPhones */}
-      <nav
-        className="fixed inset-x-0 bottom-0 z-20 flex justify-around border-t"
-        style={{
-          backgroundColor: "white",
-          borderColor: "#E2E8F0",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        }}
-      >
-        {visibleTabs.map(({ id, label, icon: Icon }) => {
-          const active = tab === id;
-          return (
+                <p className="text-sm text-gray-500">
+                  Sistema de gestión de paros y eficiencia
+                </p>
+              </div>
+            </div>
+
             <button
-              key={id}
-              onClick={() => setTab(id)}
-              className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors"
-              style={{ color: active ? AG.blue700 : AG.ink500 }}
+              onClick={() => setTab("login")}
+              className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                auth
+                  ? "bg-red-500 hover:bg-red-600 text-white shadow-md"
+                  : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
+              }`}
             >
-              <Icon
-                className="h-5 w-5"
-                style={{ color: active ? AG.blue500 : AG.ink500 }}
-              />
-              {label}
-              {active && (
-                <span
-                  className="mt-0.5 h-0.5 w-5 rounded-full"
-                  style={{ backgroundColor: AG.blue500 }}
-                />
-              )}
+              {auth ? "Cerrar Sesión" : "Iniciar Sesión"}
             </button>
-          );
-        })}
-      </nav>
+          </div>
+        </header>
+
+        {/* Navegación */}
+        <nav className="flex flex-wrap gap-2 mb-6">
+
+          {/* TIEMPOS */}
+          <button
+            onClick={() => setTab("captura")}
+            className={`px-5 py-2.5 rounded-lg transition-all duration-200 ${
+              tab === "captura"
+                ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                : "bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200"
+            }`}
+          >
+            Tiempos
+          </button>
+
+          {/* PRODUCCIÓN */}
+          {auth && (
+            <button
+              onClick={() => setTab("produccion")}
+              className={`px-5 py-2.5 rounded-lg transition-all duration-200 ${
+                tab === "produccion"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                  : "bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200"
+              }`}
+            >
+              Producción
+            </button>
+          )}
+
+          {/* PAROS */}
+          {auth && (
+            <button
+              onClick={() => setTab("historial")}
+              className={`px-5 py-2.5 rounded-lg transition-all duration-200 ${
+                tab === "historial"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                  : "bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200"
+              }`}
+            >
+              Paros
+            </button>
+          )}
+
+          {/* EFICIENCIA */}
+          {auth && (
+            <button
+              onClick={() => setTab("kpis")}
+              className={`px-5 py-2.5 rounded-lg transition-all duration-200 ${
+                tab === "kpis"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                  : "bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200"
+              }`}
+            >
+              Eficiencia
+            </button>
+          )}
+
+          {/* DASHBOARD */}
+          {auth && (
+            <button
+              onClick={() => setTab("dashboard")}
+              className={`px-5 py-2.5 rounded-lg transition-all duration-200 ${
+                tab === "dashboard"
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105"
+                  : "bg-white text-gray-600 hover:bg-gray-50 hover:shadow-md border border-gray-200"
+              }`}
+            >
+              Dashboard
+            </button>
+          )}
+
+        </nav>
+
+        {/* Contenido principal */}
+        <main className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-blue-500/10 border border-white/50 p-6">
+
+          {tab === "captura" && <Captura />}
+
+          {tab === "produccion" && auth && <Produccion />}
+
+          {tab === "historial" && auth && <Historial />}
+
+          {tab === "kpis" && auth && <KPIs />}
+
+          {tab === "dashboard" && auth && <Dashboard />}
+
+          {tab === "login" && (
+            <Login auth={auth} setAuth={setAuth} />
+          )}
+
+        </main>
+
+        {/* Footer */}
+        <footer className="mt-8 text-center text-sm text-gray-400 border-t border-gray-200 pt-4">
+          <p>© 2026 Sistema de Control de Producción</p>
+        </footer>
+
+      </div>
     </div>
   );
 }
